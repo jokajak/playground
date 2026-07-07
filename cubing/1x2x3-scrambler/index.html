@@ -74,9 +74,10 @@
   button:focus-visible{outline:2px solid var(--axis-h);outline-offset:2px}
   button.primary{background:var(--ink);color:var(--plastic);border-color:var(--ink);font-weight:700}
   button.primary:hover{background:var(--ink-hover)}
-  .depth{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.8rem;color:var(--dim)}
-  select{font-family:inherit;font-size:.85rem;background:var(--panel);color:var(--ink);
+  .field{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.8rem;color:var(--dim)}
+  select,input[type=number]{font-family:inherit;font-size:.85rem;background:var(--panel);color:var(--ink);
     border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  input[type=number]{width:60px}
 
   section h2{font-size:.72rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
   #views{display:flex;gap:44px;justify-content:center;padding:18px 0 6px;flex-wrap:wrap}
@@ -97,7 +98,7 @@
   #facts b{color:var(--ink);font-weight:500}
 
   #history{margin-top:34px}
-  #history ol{list-style:none;display:flex;flex-direction:column;gap:8px}
+  #history ol{list-style:none;display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto}
   #history li{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--dim);padding:8px 12px;
     border:1px solid var(--line);border-radius:8px;display:flex;justify-content:space-between;gap:12px;cursor:pointer}
   #history li:hover{color:var(--ink);background:var(--panel)}
@@ -127,7 +128,11 @@
   <div class="controls">
     <button class="primary" id="btnNew">New scramble</button>
     <button id="btnCopy">Copy</button>
-    <label class="depth">Difficulty
+    <button id="btnCopyAll">Copy all</button>
+    <label class="field">Count
+      <input type="number" id="countInput" min="1" max="100" step="1" value="1">
+    </label>
+    <label class="field">Difficulty
       <select id="depthSel">
         <option value="0" selected>Random state</option>
         <option value="3">Depth 3</option>
@@ -312,7 +317,9 @@ function renderScramble(moves){
 }
 
 // ================= App =================
+const HIST_MAX=100;
 let current=[];
+let lastBatch=[];
 const hist=[];
 const histEl=document.getElementById('histList');
 function renderHist(){
@@ -326,32 +333,54 @@ function renderHist(){
     const li=document.createElement('li');
     li.textContent=mv.join(' ');
     li.title='Click to restore';
-    li.onclick=()=>load(mv,false);
+    li.onclick=()=>load(mv,null);
     histEl.appendChild(li);
   });
 }
-function load(moves,record){
+function load(moves,recordBatch){
   current=moves;
-  if(record){ hist.unshift(moves); if(hist.length>5) hist.pop(); }
+  if(recordBatch){
+    for(let i=recordBatch.length-1;i>=0;i--) hist.unshift(recordBatch[i]);
+    while(hist.length>HIST_MAX) hist.pop();
+  }
   const p=solved();
   moves.forEach(m=>applyMove(p,m));
   renderScramble(moves);
   renderViews(p, moves.length);
   renderHist();
 }
-function newScramble(){ load(randomScramble(+depthSel.value), true); }
-function copyScramble(){
-  navigator.clipboard.writeText(current.join(' ')).then(()=>{
+function clampCount(){
+  let n=parseInt(countInput.value,10);
+  if(!Number.isFinite(n)) n=1;
+  n=Math.min(100,Math.max(1,n));
+  countInput.value=n;
+  return n;
+}
+function newScramble(){
+  const depth=+depthSel.value;
+  const n=clampCount();
+  lastBatch=Array.from({length:n},()=>randomScramble(depth));
+  load(lastBatch[0], lastBatch);
+}
+function copyText(text,label){
+  navigator.clipboard.writeText(text).then(()=>{
+    toast.textContent=label;
     toast.classList.add('show');
     setTimeout(()=>toast.classList.remove('show'),1200);
   });
 }
+function copyScramble(){ copyText(current.join(' '), 'Copied'); }
+function copyAll(){ copyText(lastBatch.map(mv=>mv.join(' ')).join('\n'), `Copied ${lastBatch.length}`); }
 const depthSel=document.getElementById('depthSel');
+const countInput=document.getElementById('countInput');
 const toast=document.getElementById('toast');
+countInput.addEventListener('change',clampCount);
 document.getElementById('btnNew').onclick=newScramble;
 document.getElementById('btnCopy').onclick=copyScramble;
+document.getElementById('btnCopyAll').onclick=copyAll;
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='SELECT'&&e.key===' ')return;
+  const tag=e.target.tagName;
+  if((tag==='SELECT'||tag==='INPUT')&&(e.key===' '||e.key==='c'||e.key==='C'))return;
   if(e.key===' '){e.preventDefault();newScramble();}
   if(e.key==='c'||e.key==='C')copyScramble();
 });
