@@ -1,0 +1,28 @@
+# Playground
+
+A collection of small, self-contained web utilities — no build step, no
+backend, no accounts. Each one lives in its own subdirectory and is playable
+directly from GitHub Pages.
+
+**https://jokajak.github.io/playground/**
+
+## Utilities
+
+| Utility | Description | Live |
+|---|---|---|
+| [Jeopardy Maker](jeopardymaker/) | A Jeopardy clone for 2–6 players on a shared screen, with a built-in board editor. | [Play](https://jokajak.github.io/playground/jeopardymaker/) |
+| [Bracket Maker](bracketmaker/) | Generates printable single-elimination tournament brackets (2–64 participants). | [Use it](https://jokajak.github.io/playground/bracketmaker/) |
+
+Each utility has its own README with usage instructions and details.
+
+## Adding a new utility
+
+Each utility is a self-contained directory (its own `index.html`, `src/`,
+and `README.md`) that works when served from a subpath, so it can be dropped
+in here and linked from the table above and from the [landing page](index.html).
+
+## License
+
+Playground itself is licensed under AGPL-3.0 (see [LICENSE](LICENSE)). Each
+utility subdirectory carries its own license — check the `LICENSE` file
+inside it.
