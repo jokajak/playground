@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2-Look CFOP Cheat Sheet — Triggers &amp; Alternates</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --y: #FFE800;
+    --d: #3a3a3a;
+    --ink: #111;
+    --rule: #ddd;
+    --line: #1a1a1a;
+  }
+
+  @page { size: Letter portrait; margin: 9mm; }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10.5px;
+    color: var(--ink);
+    background: #fff;
+    line-height: 1.3;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .page { max-width: 740px; margin: 0 auto; padding: 6px; }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    border-bottom: 2.5px solid var(--ink);
+    padding-bottom: 4px;
+    margin-bottom: 5px;
+  }
+  .lead { font-size: 9.5px; color: #555; margin-bottom: 4px; line-height: 1.25; }
+
+  .legend {
+    font-size: 9px;
+    color: #444;
+    background: #f7f7f7;
+    border-radius: 3px;
+    padding: 3px 7px;
+    margin-bottom: 5px;
+    line-height: 1.35;
+  }
+  .legend code {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 8.5px;
+  }
+  .lg { font-weight: 700; }
+
+  h2 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: white;
+    background: var(--ink);
+    padding: 2px 7px;
+    margin: 4px 0 3px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 3px;
+  }
+
+  .card {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 3px 3px 3px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    page-break-inside: avoid;
+  }
+  .card-name {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .card-alg {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 9px;
+    text-align: center;
+    line-height: 1.15;
+    word-spacing: -1px;
+  }
+  .tg { font-weight: 700; }
+  .mk {
+    font-size: 8px;
+    color: #777;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .rec {
+    font-size: 8px;
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .alt {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 8.5px;
+    text-align: center;
+    line-height: 1.2;
+    word-spacing: -1px;
+    color: #333;
+    border-top: 1px dashed #e4e4e4;
+    padding-top: 1px;
+    margin-top: 1px;
+  }
+  .alt .tag {
+    display: inline-block;
+    background: #eee;
+    color: #555;
+    border-radius: 2px;
+    padding: 0 3px;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    vertical-align: 1px;
+  }
+  .altnote {
+    font-size: 8px;
+    color: #888;
+    font-style: italic;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    word-spacing: 0;
+  }
+
+  svg.cube { display: block; }
+
+  .notation {
+    font-size: 9px;
+    color: #555;
+    padding: 5px 7px;
+    background: #f7f7f7;
+    border-radius: 3px;
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+
+  table.trig {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5px;
+    margin-top: 2px;
+  }
+  table.trig th {
+    background: #333;
+    color: #fff;
+    text-align: left;
+    padding: 3px 6px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table.trig td {
+    border: 1px solid var(--rule);
+    padding: 4px 6px;
+    vertical-align: top;
+  }
+  table.trig td.tname { font-weight: 700; white-space: nowrap; }
+  table.trig code {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 9.5px;
+    background: #f2f2f2;
+    padding: 1px 3px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  table.trig .fkey { color: #b03030; font-weight: 700; }
+  table.trig tbody tr:nth-child(even) { background: #fafafa; }
+  .sw {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    margin-right: 4px;
+  }
+
+  @media print {
+    body { font-size: 10px; }
+    .no-print { display: none; }
+    .triggers { page-break-inside: avoid; }
+  }
+  .no-print {
+    position: fixed; top: 8px; right: 8px;
+    background: #1a1a1a; color: white;
+    border: 0; padding: 6px 12px;
+    cursor: pointer; border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="window.print()">🖨 Print</button>
+<div class="page">
+
+  <h1>2-Look CFOP — Last Layer Cheat Sheet</h1>
+  <p class="lead">
+    Algorithms from J Perm; alternates simulator-verified. Hold cube with yellow on top, white on bottom.
+    AUF (U / U' / U2) before each step to set up the case. Side-indicator strips show stickers facing the side faces.
+    Angle notes on <strong>alt</strong> algorithms are relative to the pictured case.
+  </p>
+
+  <div class="legend" id="legend"></div>
+
+  <!-- ──────────────────────── OLL ─────────────────────── -->
+  <h2>Step 1 · OLL — Yellow Cross (Edges)</h2>
+  <div class="grid" id="oll-edges"></div>
+
+  <h2>Step 2 · OLL — Orient Corners</h2>
+  <div class="grid" id="oll-corners"></div>
+
+  <!-- ──────────────────────── PLL ─────────────────────── -->
+  <div class="pll-section">
+    <h2>Step 3 · PLL — Permute Corners</h2>
+    <div class="grid" id="pll-corners"></div>
+
+    <h2>Step 4 · PLL — Permute Edges</h2>
+    <div class="grid" id="pll-edges"></div>
+  </div>
+
+  <div class="section triggers">
+    <h2>Move Triggers — the finger-trick vocabulary</h2>
+    <p class="subtitle" style="margin:0 0 5px">
+      Right-hand dominant, cube in a neutral grip. These build almost every alg above — drill them until they're one motion, not four.
+      Base flicks: <span class="fkey">U</span> = left index push · <span class="fkey">U'</span> = right index push ·
+      <span class="fkey">R</span> = right hand flicks the R-face up · <span class="fkey">R'</span> = right hand flicks it down ·
+      <span class="fkey">F</span> = left thumb pushes the front up · <span class="fkey">F'</span> = left fingers push the front down.
+    </p>
+    <table class="trig">
+      <thead>
+        <tr><th style="width:15%">Trigger</th><th style="width:17%">Moves</th><th style="width:30%">What it does</th><th>Finger sequence</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#c0392b"></span>Sexy move</td>
+          <td><code>R U R' U'</code></td>
+          <td>The universal building block — one 4-move burst that cycles three pieces. Shows up in the OLL cross algs, the T cases, and most PLLs here.</td>
+          <td><span class="fkey">R</span> right ring flicks up → <span class="fkey">U</span> left index → <span class="fkey">R'</span> right index flicks down → <span class="fkey">U'</span> right index. Learn this one first.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#7d3cb5"></span>Reverse sexy</td>
+          <td><code>U R U' R'</code></td>
+          <td>Sexy run backwards; it exactly undoes a sexy move. Useful to recognize so you can read algs in either direction.</td>
+          <td><span class="fkey">U</span> left index → <span class="fkey">R</span> right ring up → <span class="fkey">U'</span> right index → <span class="fkey">R'</span> right index down.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#d97706"></span>Sune trigger</td>
+          <td><code>R U R' U</code></td>
+          <td>A sexy move whose final turn is <code>U</code> instead of <code>U'</code>. Add <code>R U2 R'</code> and you've got Sune; the H-OLL is three of these bursts in a row.</td>
+          <td>Identical to sexy until the last move — finish with a <em>left-index</em> <span class="fkey">U</span> push instead of the right-index U'.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#1f5faf"></span>Sledgehammer</td>
+          <td><code>R' F R F'</code></td>
+          <td>The other workhorse — inserts/cycles corners. Alternates a right-hand move with a left-hand F move. Ends the Diagonal PLL and (wide) the T-OLL.</td>
+          <td><span class="fkey">R'</span> right index flicks down → <span class="fkey">F</span> left thumb pushes front up → <span class="fkey">R</span> right ring up → <span class="fkey">F'</span> left fingers push front down.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#0e7c66"></span>Hedgeslammer</td>
+          <td><code>F R' F' R</code></td>
+          <td>Sledgehammer reversed (a.k.a. "hedge"). Same two hands, opposite order — undoes a sledgehammer. Opens the L-OLL (wide-ended).</td>
+          <td><span class="fkey">F</span> left thumb up → <span class="fkey">R'</span> right index down → <span class="fkey">F'</span> left fingers down → <span class="fkey">R</span> right ring up.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#d97b66"></span>Wide sexy</td>
+          <td><code>r U R' U'</code></td>
+          <td>A sexy whose first turn is a <em>wide</em> R (drags the middle slice along). Same rhythm as sexy — this is the opener of the T-OLL.</td>
+          <td>Grip the top two layers with the right hand for the first flick, then finish exactly like a sexy move.</td>
+        </tr>
+        <tr>
+          <td class="tname"><span class="sw" style="background:#555"></span>M-slice flick</td>
+          <td><code>M' · M2</code></td>
+          <td>Powers the M-slice edge perms (H, Z, and the alternate Ua/Ub). <code>M</code> follows the L direction; <code>M2</code> is a double flick.</td>
+          <td>Left hand grips F/B; right <em>ring</em> finger flicks the bottom-back of the middle slice for <span class="fkey">M'</span> — for <span class="fkey">M2</span>, roll ring then middle in one motion. Alternate with left-index U pushes.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notation">
+    <strong>Notation:</strong>
+    R L U D F B = clockwise face turn ·
+    <strong>'</strong> = counter-clockwise ·
+    <strong>2</strong> = 180° ·
+    <strong>r f</strong> = wide turn (face + adjacent slice) ·
+    <strong>M</strong> = middle slice (same direction as L) ·
+    <strong>S</strong> = slice between F and B (same direction as F) ·
+    <strong>x y z</strong> = whole-cube rotation
+    &nbsp;|&nbsp; <strong>Yellow squares</strong> = sticker facing top.
+    <strong>Yellow strips around perimeter</strong> = sticker facing that side face.
+    &nbsp;|&nbsp; <strong>Colored moves</strong> = triggers (see legend) — lighter shade means the wide variant.
+  </div>
+</div>
+
+<script>
+//──────────────────────────────────────────────
+// SVG generator for OLL / PLL case diagrams
+//──────────────────────────────────────────────
+const Y = '#FFE800';         // yellow
+const D = '#3a3a3a';         // dark (non-yellow)
+const L = '#1a1a1a';         // outline
+
+// PLL sticker colours sampled from J Perm. X = greyed (piece position irrelevant this step)
+const PCOL = {
+  B: '#0F0FDC',  // blue
+  G: '#5DCB3C',  // green
+  R: '#DA2F20',  // red
+  O: '#F2A53A',  // orange
+  X: '#404040',  // grey / don't-care
+};
+const pfill = v => PCOL[v] || '#404040';
+
+/* Layout (viewBox 90x90):
+     3x3 top face cells at (20+c*16, 20+r*16) size 16x16
+     Side strips around perimeter (6px thick, 16px long)
+       back  (top of diagram):  y=12..18,  x=20+i*16
+       front (bottom):          y=72..78
+       left  (left of diagram): x=12..18,  y=20+i*16
+       right(right):            x=72..78
+   For each side, 3 strips: [corner-A, edge, corner-B]
+*/
+
+function makeStrips(arr, axis, side, fillFn) {
+  let out = '';
+  for (let i = 0; i < 3; i++) {
+    const fill = fillFn(arr[i], i);
+    if (axis === 'h') {
+      const x = 20 + i * 16;
+      const y = side === 'top' ? 12 : 72;
+      out += `<rect x="${x}" y="${y}" width="16" height="6" fill="${fill}" stroke="${L}" stroke-width="0.4"/>`;
+    } else {
+      const y = 20 + i * 16;
+      const x = side === 'left' ? 12 : 72;
+      out += `<rect x="${x}" y="${y}" width="6" height="16" fill="${fill}" stroke="${L}" stroke-width="0.4"/>`;
+    }
+  }
+  return out;
+}
+
+function topFace(cells, fillFn) {
+  let out = '';
+  for (let i = 0; i < 9; i++) {
+    const col = i % 3, row = (i / 3) | 0;
+    const x = 20 + col * 16, y = 20 + row * 16;
+    out += `<rect x="${x}" y="${y}" width="16" height="16" fill="${fillFn(cells[i], i)}" stroke="${L}" stroke-width="0.4"/>`;
+  }
+  return out;
+}
+
+function ollSVG(spec) {
+  const f = v => v ? Y : D;
+  return `<svg class="cube" width="60" height="60" viewBox="0 0 90 90">
+    ${makeStrips(spec.back  || [0,0,0], 'h', 'top',    f)}
+    ${makeStrips(spec.front || [0,0,0], 'h', 'bottom', f)}
+    ${makeStrips(spec.left  || [0,0,0], 'v', 'left',   f)}
+    ${makeStrips(spec.right || [0,0,0], 'v', 'right',  f)}
+    ${topFace(spec.top, f)}
+  </svg>`;
+}
+
+function pllSVG(tabs, arrowsSVG = '') {
+  return `<svg class="cube" width="62" height="62" viewBox="0 0 90 90">
+    <defs>
+      <marker id="ah" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+        <path d="M0,0.5 L7,3.5 L0,6.5 Z" fill="#111"/>
+      </marker>
+    </defs>
+    ${makeStrips(tabs.back,  'h', 'top',    pfill)}
+    ${makeStrips(tabs.front, 'h', 'bottom', pfill)}
+    ${makeStrips(tabs.left,  'v', 'left',   pfill)}
+    ${makeStrips(tabs.right, 'v', 'right',  pfill)}
+    ${topFace([1,1,1,1,1,1,1,1,1], () => Y)}
+    ${arrowsSVG}
+  </svg>`;
+}
+
+//──────────────────────────────────────────────
+// Trigger highlighter
+//──────────────────────────────────────────────
+// Greedy left-to-right, non-overlapping. Lighter shades = wide variants;
+// left-hand (L) mirrors share the base color.
+const TRIGS = [
+  { id: 'sexy',     seq: ['R','U',"R'","U'"], color: '#c0392b' },
+  { id: 'lsexy',    seq: ["L'","U'",'L','U'], color: '#c0392b' },
+  { id: 'invsexy',  seq: ['U','R',"U'","R'"], color: '#7d3cb5' },
+  { id: 'winvsexy', seq: ['U','R',"U'","r'"], color: '#a67ed0' },
+  { id: 'sledge',   seq: ["R'",'F','R',"F'"], color: '#1f5faf' },
+  { id: 'wsledge',  seq: ["r'",'F','R',"F'"], color: '#6f95cf' },
+  { id: 'hedge',    seq: ['F',"R'","F'",'R'], color: '#0e7c66' },
+  { id: 'whedge',   seq: ['F',"R'","F'",'r'], color: '#43a08a' },
+  { id: 'wsexy',    seq: ['r','U',"R'","U'"], color: '#d97b66' },
+  { id: 'sune',     seq: ['R','U',"R'",'U'],  color: '#d97706' },
+  { id: 'lsune',    seq: ['L','U',"L'",'U'],  color: '#d97706' },
+];
+
+function hl(alg) {
+  return alg.split(/<br\s*\/?>/).map(line => {
+    const toks = line.replace(/[()]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    const out = [];
+    let i = 0;
+    while (i < toks.length) {
+      let m = null;
+      for (const t of TRIGS) {
+        const n = t.seq.length;
+        if (i + n <= toks.length && t.seq.every((mv, j) => toks[i + j] === mv)) { m = t; break; }
+      }
+      if (m) {
+        out.push(`<span class="tg" style="color:${m.color}">(${toks.slice(i, i + m.seq.length).join(' ')})</span>`);
+        i += m.seq.length;
+      } else {
+        out.push(toks[i]); i++;
+      }
+    }
+    return out.join(' ');
+  }).join('<br>');
+}
+
+//──────────────────────────────────────────────
+// CASE DEFINITIONS
+// alg = primary (J Perm) · alt = simulator-verified alternative
+// altNote = starting angle / usage note relative to the pictured case
+// mk = trigger breakdown of the primary alg
+//──────────────────────────────────────────────
+
+// OLL Look 1 — yellow cross
+const ollEdges = [
+  {
+    name: 'Dot',
+    alg: "F R U R' U' F'<br>f R U R' U' f'",
+    mk: "F + sexy + F' · then f + sexy + f'",
+    alt: "F R U R' U' S R U R' U' f'",
+    altNote: "one-shot: S merges both halves",
+    spec: {
+      top:   [0,0,0, 0,1,0, 0,0,0],
+      back:  [0,1,0], front: [0,1,0],
+      left:  [0,1,0], right: [0,1,0],
+    },
+  },
+  {
+    name: 'I-Shape (Line)',
+    alg: "F R U R' U' F'",
+    mk: "F + sexy + F'",
+    alt: "F' L' U' L U F",
+    altNote: "left-hand mirror · same angle",
+    spec: {
+      top:   [0,0,0, 1,1,1, 0,0,0],
+      back:  [0,1,0], front: [0,1,0],
+      left:  [0,0,0], right: [0,0,0],
+    },
+  },
+  {
+    name: 'L-Shape',
+    alg: "f R U R' U' f'",
+    mk: "f + sexy + f'",
+    alt: "F U R U' R' F'",
+    altNote: "U2 first (L at back-left)",
+    spec: {
+      // L at front-right (front + right edges yellow on top)
+      top:   [0,0,0, 0,1,1, 0,1,0],
+      back:  [0,1,0], front: [0,0,0],
+      left:  [0,1,0], right: [0,0,0],
+    },
+  },
+];
+
+// OLL Look 2 — orient corners
+// Convention (top-down view):
+//   grid (0,0)=UBL  (2,0)=UBR  (0,2)=UFL  (2,2)=UFR
+//   back strip indices  = [UBL.back, edge, UBR.back]
+//   front strip indices = [UFL.front, edge, UFR.front]
+//   left strip indices  = [UBL.left, edge, UFL.left]
+//   right strip indices = [UBR.right, edge, UFR.right]
+const ollCorners = [
+  {
+    name: 'Sune',
+    alg: "R U R' U R U2 R'",
+    mk: "Sune trigger + R U2 R'",
+    alt: "L U L' U L U2 L'",
+    altNote: "left-hand · U2 first",
+    spec: {
+      top:   [0,1,0, 1,1,1, 1,1,0],
+      back:  [1,0,0],
+      front: [0,0,1],
+      left:  [0,0,0],
+      right: [1,0,0],
+    },
+  },
+  {
+    name: 'Antisune',
+    alg: "R U2 R' U' R U' R'",
+    mk: "Sune in reverse",
+    alt: "L' U' L U' L' U2 L",
+    altNote: "left-hand · U first",
+    spec: {
+      top:   [0,1,1, 1,1,1, 0,1,0],
+      back:  [0,0,0],
+      front: [1,0,0],
+      left:  [1,0,0],
+      right: [0,0,1],
+    },
+  },
+  {
+    name: 'H',
+    alg: "R U R' U R U' R' U R U2 R'",
+    mk: "three R-U bursts — Sune rhythm",
+    alt: "F R U R' U' R U R' U' R U R' U' F'",
+    altNote: "F + sexy ×3 + F' · U' first",
+    spec: {
+      top:   [0,1,0, 1,1,1, 0,1,0],
+      back:  [0,0,0], front: [0,0,0],
+      left:  [1,0,1], right: [1,0,1],
+    },
+  },
+  {
+    name: 'Pi (Bruno)',
+    alg: "R U2 R2 U' R2 U' R2 U2 R",
+    mk: "Bruno",
+    alt: "R' U2 R2 U R2 U R2 U2 R'",
+    altNote: "reverse Bruno · same angle",
+    spec: {
+      top:   [0,1,0, 1,1,1, 0,1,0],
+      back:  [0,0,1],
+      front: [0,0,1],
+      left:  [1,0,1],
+      right: [0,0,0],
+    },
+  },
+  {
+    name: 'T',
+    alg: "r U R' U' r' F R F'",
+    mk: "wide sexy + wide sledge",
+    alt: "R U R D R' U' R D' R2",
+    altNote: "U first",
+    spec: {
+      top:   [0,1,1, 1,1,1, 0,1,1],
+      back:  [1,0,0],
+      front: [1,0,0],
+      left:  [0,0,0], right: [0,0,0],
+    },
+  },
+  {
+    name: 'U (Headlights)',
+    alg: "R2 D R' U2 R D' R' U2 R'",
+    mk: "D-alg — thumb holds the front",
+    alt: "R2 D' R U2 R' D R U2 R",
+    altNote: "mirror · U2 first",
+    spec: {
+      top:   [1,1,1, 1,1,1, 0,1,0],
+      back:  [0,0,0],
+      front: [1,0,1],
+      left:  [0,0,0], right: [0,0,0],
+    },
+  },
+  {
+    name: 'L',
+    alg: "F R' F' r U R U' r'",
+    mk: "wide hedge + wide reverse sexy",
+    alt: "R' F R B' R' F' R B",
+    altNote: "no wide moves · same angle",
+    spec: {
+      top:   [1,1,0, 1,1,1, 0,1,1],
+      back:  [0,0,0],
+      front: [1,0,0],
+      left:  [0,0,0],
+      right: [1,0,0],
+    },
+  },
+];
+
+//──────────────────────────────────────────────
+// PLL Look 1 — corners
+//──────────────────────────────────────────────
+const arrowDiag = `
+  <line x1="30" y1="30" x2="58" y2="58" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+`;
+
+const arrowHeadlights = `
+  <line x1="60" y1="28" x2="60" y2="60" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+`;
+
+const pllCorners = [
+  {
+    name: 'Diagonal',
+    alg: "F R U' R' U' R U R' F'<br>R U R' U' R' F R F'",
+    mk: "line 2 = sexy + sledge (Y perm)",
+    alt: "x' R U' R' D R U R' D' R U<br>R' D R U' R' D' x",
+    altNote: "E perm — any angle, corners only",
+    tabs: { back:['B','X','G'], front:['B','X','G'], left:['R','X','O'], right:['R','X','O'] },
+    arrowsSVG: arrowDiag,
+    note: 'No matching pair on any face',
+  },
+  {
+    name: 'Headlights',
+    alg: "R U R' U' R' F R2 U' R'<br>U' R U R' F'",
+    mk: "T perm — sexy opener",
+    alt: "R U2 R' U' R U2 L' U R' U' L",
+    altNote: "pair on left too",
+    tabs: { back:['G','X','R'], front:['B','X','R'], left:['O','X','O'], right:['B','X','G'] },
+    arrowsSVG: arrowHeadlights,
+    note: 'One face has a matching pair — keep it on the left',
+  },
+];
+
+//──────────────────────────────────────────────
+// PLL Look 2 — edges
+//──────────────────────────────────────────────
+const arrowH = `
+  <line x1="44" y1="27" x2="44" y2="61" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <line x1="27" y1="44" x2="61" y2="44" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+`;
+
+// Ua (sim-verified): UF->UR, UR->UL, UL->UF
+const arrowUa = `
+  <line x1="47" y1="57" x2="59" y2="47" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+  <line x1="56" y1="44" x2="30" y2="44" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+  <line x1="29" y1="47" x2="41" y2="57" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+`;
+
+// Ub (sim-verified): UF->UL, UL->UR, UR->UF
+const arrowUb = `
+  <line x1="41" y1="57" x2="29" y2="47" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+  <line x1="32" y1="44" x2="58" y2="44" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+  <line x1="59" y1="47" x2="47" y2="57" stroke="#111" stroke-width="1.8" marker-end="url(#ah)"/>
+`;
+
+// Z (sim-verified): adjacent pairs UB<->UL and UF<->UR
+const arrowZ = `
+  <line x1="48" y1="24" x2="24" y2="48" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <line x1="40" y1="64" x2="64" y2="40" stroke="#111" stroke-width="2"
+        marker-start="url(#ah)" marker-end="url(#ah)"/>
+`;
+
+const pllEdges = [
+  {
+    name: 'H',
+    alg: "M2 U M2 U2 M2 U M2",
+    mk: "M-slice ring-finger flicks",
+    alt: "R2 U2 R U2 R2 U2 R2 U2 R U2 R2",
+    altNote: "RU-only — no slices",
+    tabs: { back:['G','B','G'], front:['B','G','B'], left:['O','R','O'], right:['R','O','R'] },
+    arrowsSVG: arrowH,
+    note: 'Opposite edges swap (×2)',
+  },
+  {
+    name: 'Ua',
+    alg: "R U' R U R U R U' R' U' R2",
+    mk: "RU-only",
+    alt: "M2 U M U2 M' U M2",
+    altNote: "M-slice version",
+    tabs: { back:['G','G','G'], front:['B','R','B'], left:['O','B','O'], right:['R','O','R'] },
+    arrowsSVG: arrowUa,
+    note: '3-edge cycle (back stays)',
+  },
+  {
+    name: 'Ub',
+    alg: "R2 U R U R' U' R' U' R' U R'",
+    mk: "mirror of Ua",
+    alt: "M2 U' M U2 M' U' M2",
+    altNote: "M-slice version",
+    tabs: { back:['G','G','G'], front:['B','O','B'], left:['O','R','O'], right:['R','B','R'] },
+    arrowsSVG: arrowUb,
+    note: '3-edge cycle (mirror of Ua)',
+  },
+  {
+    name: 'Z',
+    alg: "M' U M2 U M2 U M' U2 M2",
+    mk: "M-slice",
+    alt: "M2 U M2 U M' U2 M2 U2 M'",
+    altNote: "U' first",
+    tabs: { back:['R','B','R'], front:['O','G','O'], left:['G','O','G'], right:['B','R','B'] },
+    arrowsSVG: arrowZ,
+    note: 'Two adjacent pairs swap',
+  },
+];
+
+//──────────────────────────────────────────────
+// Render
+//──────────────────────────────────────────────
+function cardHTML(c, svg) {
+  return `
+    <div class="card">
+      <div class="card-name">${c.name}</div>
+      ${svg}
+      <div class="card-alg">${hl(c.alg)}</div>
+      ${c.mk ? `<div class="mk">${c.mk}</div>` : ''}
+      ${c.note ? `<div class="rec">${c.note}</div>` : ''}
+      ${c.alt ? `<div class="alt"><span class="tag">ALT</span> ${hl(c.alt)}${c.altNote ? ` <span class="altnote">· ${c.altNote}</span>` : ''}</div>` : ''}
+    </div>`;
+}
+
+function renderOLL(containerId, cases) {
+  document.getElementById(containerId).innerHTML =
+    cases.map(c => cardHTML(c, ollSVG(c.spec))).join('');
+}
+
+function renderPLL(containerId, cases) {
+  document.getElementById(containerId).innerHTML =
+    cases.map(c => cardHTML(c, pllSVG(c.tabs, c.arrowsSVG))).join('');
+}
+
+function renderLegend() {
+  const chip = (name, moves, color) =>
+    `<span class="lg" style="color:${color}">${name}</span> <code>${moves}</code>`;
+  document.getElementById('legend').innerHTML =
+    `<strong>Trigger colors:</strong> ` + [
+      chip('sexy', "R U R' U'", '#c0392b'),
+      chip('reverse sexy', "U R U' R'", '#7d3cb5'),
+      chip('Sune trigger', "R U R' U", '#d97706'),
+      chip('sledgehammer', "R' F R F'", '#1f5faf'),
+      chip('hedgeslammer', "F R' F' R", '#0e7c66'),
+    ].join(' · ') +
+    ` &nbsp;—&nbsp; lighter shade = wide (<code>r</code>) variant · left-hand (<code>L</code>) mirrors share the base color.`;
+}
+
+renderLegend();
+renderOLL('oll-edges',   ollEdges);
+renderOLL('oll-corners', ollCorners);
+renderPLL('pll-corners', pllCorners);
+renderPLL('pll-edges',   pllEdges);
+</script>
+
+</body>
+</html>
