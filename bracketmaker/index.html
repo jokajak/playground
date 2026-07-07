@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bracket Maker</title>
+  <style>
+    /* ── Reset + base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --line:    #1f2937;   /* bracket lines + writing lines */
+      --accent:  #1d4ed8;
+      --bg:      #f3f4f6;
+      --panel:   #ffffff;
+      --ink:     #111827;
+      --muted:   #6b7280;
+      --col-w:   160px;     /* width of each slot/column */
+      --conn-w:  26px;      /* width of a connector column */
+      --row-h:   2.75rem;   /* min height of a first-round row */
+      --line-w:  2.5px;     /* stroke width of all lines */
+      --elbow:   9px;       /* corner radius of the connector elbows */
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+    }
+
+    button, select, input { font-family: inherit; }
+
+    /* ── Controls ─────────────────────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 16px;
+      padding: 16px 24px;
+      background: var(--panel);
+      border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .control { display: flex; flex-direction: column; gap: 4px; }
+    .control label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .control select,
+    .control .title-input {
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    .control .title-input { min-width: 280px; }
+    .control select:focus,
+    .control .title-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(29,78,216,0.15);
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #1e40af; }
+    .btn.secondary {
+      background: #fff;
+      color: var(--accent);
+      border: 1px solid #c7d2fe;
+    }
+    .btn.secondary:hover { background: #eef2ff; }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+      align-self: center;
+    }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+    .hint { font-size: 0.78rem; color: var(--muted); align-self: center; max-width: 26rem; }
+
+    /* ── Sheet (the printable area) ───────────────────────────────────────── */
+    .sheet-scroll { flex: 1; overflow: auto; padding: 28px; }
+    .sheet {
+      background: #fff;
+      padding: 28px 32px 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      width: max-content;
+      min-width: 100%;
+    }
+
+    .sheet-title {
+      width: 100%;
+      border: none;
+      border-bottom: var(--line-w) solid var(--line);
+      padding: 6px 4px 10px;
+      margin-bottom: 28px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--ink);
+      background: transparent;
+    }
+    .sheet-title::placeholder { color: #cbd5e1; font-weight: 400; }
+    .sheet-title:focus { outline: none; }
+
+    /* ── Bracket layout ───────────────────────────────────────────────────── */
+    /* Two-sided: [ left half | champion | right half ]. Each half holds
+       half the participants, so the bracket is half as tall as the count. */
+    .bracket {
+      display: flex;
+      align-items: stretch;
+      width: max-content;
+      margin: 0 auto;
+      min-height: calc(var(--participants) * var(--row-h) / 2);
+    }
+    .half { display: flex; flex: 0 0 auto; }
+
+    /* As a feeder item (child of a column) flex:1 distributes height evenly.
+       Horizontally, columns keep their natural width — feeders fills height
+       via stretch, not by growing across. */
+    .match    { display: flex; flex: 1 1 0; align-items: stretch; }
+    .feeders  { display: flex; flex-direction: column; flex: 0 0 auto; }
+
+    /* The right half mirrors the left: matches flow output-first (toward the
+       centre). The elbows themselves are flipped where .connector is styled. */
+    .half.right .match { flex-direction: row-reverse; }
+
+    .outcol {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    /* A slot: a band with a writing line at its vertical centre. */
+    .slot {
+      flex: 1 1 0;
+      min-width: var(--col-w);
+      min-height: var(--row-h);
+      position: relative;
+    }
+    .slot.out { flex: 0 0 auto; min-height: var(--row-h); }
+
+    /* The writing line is a text input. Its bottom border is anchored to the
+       band's vertical centre (bottom: 50%) so connector lines meet it exactly;
+       you type — or write by hand — in the space just above the line. Empty
+       inputs print as a plain blank line. */
+    .line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 50%;
+      height: 1.7em;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-bottom: var(--line-w) solid var(--line);
+      border-radius: 4px 4px 0 0;
+      font: inherit;
+      font-size: 0.95rem;
+      color: var(--ink);
+      padding: 0 8px;
+    }
+    .line:hover { background-color: #eef2ff; }
+    .line:focus {
+      outline: none;
+      background-color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+    }
+
+    /* Winner slots are dropdowns that pick from the two feeding competitors. */
+    select.winner {
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      padding-right: 22px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      background-size: 10px 7px;
+    }
+    select.winner:hover { background-color: #eef2ff; }
+    select.winner:focus { background-color: #fff; }
+
+    /* Seed number on the outer edge of each first-round slot. */
+    .seed {
+      position: absolute;
+      bottom: calc(50% + 0.12em);
+      left: 7px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      line-height: 1;
+      pointer-events: none;
+    }
+    .slot.seeded .line { padding-left: 2em; }
+    .slot.seed-right .seed { left: auto; right: 7px; }
+    .slot.seed-right .line {
+      padding-left: 8px;
+      padding-right: 2em;
+      text-align: right;
+    }
+
+    /* ── Wildcard play-ins ─────────────────────────────────────────────────
+       The lowest seed in each quadrant is decided by a two-way play-in. Its
+       slot becomes a winner dropdown; the two competitors are drawn as a small
+       fork in the reserved outer margin, feeding the seed line. */
+    .bracket.wildcard { padding: 0 200px; }
+    .playin {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: 100%; /* left half: fork sits just outside the seed slot */
+      display: flex;
+      align-items: stretch;
+    }
+    .half.right .playin { right: auto; left: 100%; flex-direction: row-reverse; }
+    .playin .slot { min-width: var(--col-w); min-height: 0; }
+
+    /* Connector: one continuous shape per match. ::before draws the two arms
+       (at 25% / 75%, where the feeder slots sit) joined by a vertical bar with
+       rounded corners; ::after is the stub from the bar's middle to the winner
+       slot. Everything meets edge-to-edge, so the line never breaks. */
+    .connector {
+      width: var(--conn-w);
+      flex: 0 0 auto;
+      position: relative;
+    }
+    /* The arms are border-top/bottom; nudged so each line is colinear with the
+       writing lines it joins (which sit on the lower edge of their band). */
+    .connector::before {
+      content: "";
+      position: absolute;
+      top: calc(25% - var(--line-w));
+      bottom: 25%;
+      left: 0;
+      right: 50%;
+      border: var(--line-w) solid var(--line);
+      border-left: none;
+      border-top-right-radius: var(--elbow);
+      border-bottom-right-radius: var(--elbow);
+    }
+    .connector::after {
+      content: "";
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      right: 0;
+      border-bottom: var(--line-w) solid var(--line);
+    }
+    /* The right half is mirrored, so flip its elbows horizontally. */
+    .half.right .connector { transform: scaleX(-1); }
+
+    /* Centre column where the two finalists meet. */
+    .final-center {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 0 0 auto;
+      min-width: var(--col-w);
+    }
+    .champion-box { position: relative; min-height: var(--row-h); }
+    .champion-label {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(50% + 2em);
+      text-align: center;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .champion-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 50%;
+      height: 1.7em;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-bottom: var(--line-w) solid var(--line);
+      border-radius: 4px 4px 0 0;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--ink);
+      text-align: center;
+      padding: 0 8px;
+    }
+    .champion-line:hover { background-color: #eef2ff; }
+    .champion-line:focus {
+      outline: none;
+      background-color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+    }
+
+    /* ── Print ────────────────────────────────────────────────────────────── */
+    @media print {
+      @page { size: landscape; margin: 0.35in; }
+      body { background: #fff; }
+      .controls, .hint { display: none !important; }
+      .sheet-scroll { overflow: visible; padding: 0; }
+      .sheet {
+        box-shadow: none;
+        border-radius: 0;
+        padding: 0;
+        width: 100%;
+      }
+      /* The bracket is scaled to one page by JS (beforeprint); the host is sized
+         to the scaled box and clips so it can't spill onto extra pages. */
+      #bracket-host { margin: 0 auto; }
+      .bracket { transform-origin: top left; }
+      .sheet-title::placeholder { color: transparent; }
+      /* Editable-field chrome is on-screen only: print just the writing line. */
+      .line, .champion-line {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: var(--line-w) solid var(--line) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      /* Ask the browser to honour line colors. */
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <div class="control">
+      <label for="size">Participants</label>
+      <select id="size">
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+        <option value="16" selected>16</option>
+        <option value="32">32</option>
+        <option value="64">64</option>
+      </select>
+    </div>
+    <label class="toggle"><input type="checkbox" id="wildcard"> Wildcard play-ins</label>
+    <button id="print" class="btn">Print bracket</button>
+    <button id="save" class="btn secondary">Save</button>
+    <button id="load" class="btn secondary">Load</button>
+    <button id="clear" class="btn secondary">Clear</button>
+    <input id="file" type="file" accept="application/json,.json" hidden>
+    <span class="hint">Your bracket is saved in this browser automatically. Use
+      <strong>Save</strong>/<strong>Load</strong> to move it between devices.</span>
+  </div>
+
+  <div class="sheet-scroll">
+    <div class="sheet">
+      <input id="title" class="sheet-title" type="text"
+             placeholder="Tournament title…" aria-label="Bracket title">
+      <div id="bracket-host"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderBracket, VALID_SIZES, syncWinners } from './src/bracket.js';
+
+    const STORAGE_KEY = 'bracketmaker:current';
+
+    const sizeSelect = document.getElementById('size');
+    const titleInput = document.getElementById('title');
+    const wildcardToggle = document.getElementById('wildcard');
+    const host = document.getElementById('bracket-host');
+    const fileInput = document.getElementById('file');
+
+    function draw() {
+      renderBracket(host, {
+        size: Number(sizeSelect.value),
+        wildcard: wildcardToggle.checked,
+      });
+    }
+
+    // ── State: title + size + wildcard + first-round entries + winner picks ──
+    // entries = the text inputs (leaves + play-in competitors); picks = each
+    // winner/champion/play-in select's chosen side. Both are in document order,
+    // deterministic for a given size + wildcard setting.
+    function collectState() {
+      return {
+        app: 'bracketmaker',
+        version: 3,
+        size: Number(sizeSelect.value),
+        wildcard: wildcardToggle.checked,
+        title: titleInput.value,
+        entries: [...host.querySelectorAll('input.line')].map((i) => i.value),
+        picks: [...host.querySelectorAll('select.winner')].map((s) => s.value),
+      };
+    }
+
+    function applyState(state) {
+      if (!state || typeof state !== 'object') return;
+      if (VALID_SIZES.includes(state.size)) sizeSelect.value = String(state.size);
+      wildcardToggle.checked = Boolean(state.wildcard);
+      draw(); // rebuild at the right size, then fill the (deterministic) slots
+      titleInput.value = state.title ?? '';
+      const inputs = [...host.querySelectorAll('input.line')];
+      (state.entries ?? []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+      const winners = [...host.querySelectorAll('select.winner')];
+      (state.picks ?? []).forEach((v, i) => { if (winners[i]) winners[i].value = v; });
+      syncWinners(host); // refresh the option labels to match restored names
+    }
+
+    // ── Auto-save to this browser ───────────────────────────────────────────
+    function saveLocal() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState())); }
+      catch { /* storage full or unavailable — ignore */ }
+    }
+    function loadLocal() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); }
+      catch { return null; }
+    }
+
+    // ── Save / load to a JSON file ──────────────────────────────────────────
+    function saveFile() {
+      const blob = new Blob([JSON.stringify(collectState(), null, 2)],
+        { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (titleInput.value.trim() || 'bracket') + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        applyState(JSON.parse(await file.text()));
+        saveLocal();
+      } catch {
+        alert('Sorry — that file is not a valid bracket.');
+      }
+      fileInput.value = '';
+    });
+
+    // ── Wire up controls ────────────────────────────────────────────────────
+    // ── Fit the bracket onto a single landscape page when printing ──────────
+    // A transform alone keeps the original (huge) layout box, which paginates;
+    // so we also size the host to the scaled box and clip it.
+    function fitForPrint() {
+      resetPrint();
+      const bracket = host.firstElementChild;
+      if (!bracket) return;
+      const w = bracket.scrollWidth;
+      const h = bracket.scrollHeight;
+      if (!w || !h) return;
+      // Conservative landscape printable area (fits both US Letter and A4),
+      // leaving room above for the title.
+      const scale = Math.min(960 / w, 600 / h, 1);
+      bracket.style.transform = `scale(${scale})`;
+      host.style.width = `${Math.ceil(w * scale)}px`;
+      host.style.height = `${Math.ceil(h * scale)}px`;
+      host.style.overflow = 'hidden';
+    }
+    function resetPrint() {
+      const bracket = host.firstElementChild;
+      if (bracket) bracket.style.transform = '';
+      host.style.width = '';
+      host.style.height = '';
+      host.style.overflow = '';
+    }
+    window.addEventListener('beforeprint', fitForPrint);
+    window.addEventListener('afterprint', resetPrint);
+
+    sizeSelect.addEventListener('change', () => { draw(); saveLocal(); });
+    wildcardToggle.addEventListener('change', () => { draw(); saveLocal(); });
+    host.addEventListener('input', saveLocal);
+    host.addEventListener('change', saveLocal); // winner dropdowns
+    titleInput.addEventListener('input', saveLocal);
+    document.getElementById('print').addEventListener('click', () => window.print());
+    document.getElementById('save').addEventListener('click', saveFile);
+    document.getElementById('load').addEventListener('click', () => fileInput.click());
+    document.getElementById('clear').addEventListener('click', () => {
+      if (!confirm('Clear the title and all entries on this bracket?')) return;
+      titleInput.value = '';
+      draw();
+      saveLocal();
+    });
+
+    // ── Restore the last bracket, or start fresh ────────────────────────────
+    const saved = loadLocal();
+    if (saved) applyState(saved); else draw();
+  </script>
+</body>
+</html>
