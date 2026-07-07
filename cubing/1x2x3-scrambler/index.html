@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1×2×3 Character Cube Scrambler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --plastic:#141416; --panel:#1d1d21; --line:#2c2c32;
+    --ink:#e9e9ec; --dim:#8b8b94;
+    --axis-v:#f07f1a; --axis-h:#2e6fd8;
+    --bot:#7fd1c0; --bot-dk:#4aa392;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--plastic);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;
+    min-height:100vh;display:flex;justify-content:center;padding:32px 16px 48px}
+  main{width:100%;max-width:660px}
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px}
+  h1{font-size:1.05rem;font-weight:500}
+  h1 b{font-weight:700}
+  .hint{font-size:.75rem;color:var(--dim)}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:.7rem;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+
+  #scramble{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding:28px 16px;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;min-height:96px}
+  .mv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(1.3rem,4.5vw,1.9rem);
+    padding:6px 14px;border-radius:10px;border:1px solid var(--line);background:var(--plastic);
+    animation:pop .18s ease both}
+  .mv.v{box-shadow:inset 0 -3px 0 var(--axis-v)}
+  .mv.h{box-shadow:inset 0 -3px 0 var(--axis-h)}
+  @keyframes pop{from{transform:translateY(4px);opacity:0}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion: reduce){.mv{animation:none}}
+
+  .legend{display:flex;gap:18px;justify-content:center;margin-top:10px;font-size:.72rem;color:var(--dim);flex-wrap:wrap}
+  .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .legend .lv i{background:var(--axis-v)} .legend .lh i{background:var(--axis-h)}
+
+  .controls{display:flex;gap:10px;align-items:center;margin:22px 0 30px;flex-wrap:wrap}
+  button{font-family:inherit;font-size:.9rem;font-weight:500;padding:10px 18px;border-radius:10px;
+    cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);transition:background .12s}
+  button:hover{background:#26262c}
+  button:focus-visible{outline:2px solid var(--axis-h);outline-offset:2px}
+  button.primary{background:var(--ink);color:var(--plastic);border-color:var(--ink);font-weight:700}
+  button.primary:hover{background:#fff}
+  .depth{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.8rem;color:var(--dim)}
+  select{font-family:inherit;font-size:.85rem;background:var(--panel);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+
+  section h2{font-size:.72rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  #views{display:flex;gap:44px;justify-content:center;padding:18px 0 6px;flex-wrap:wrap}
+  .viewcol{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .viewlabel{font-size:.72rem;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .stack{display:flex;flex-direction:column;gap:5px}
+  .rowstrip{display:flex;gap:5px}
+  .cell{width:64px;height:64px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .cell svg{width:52px;height:56px;display:block}
+  .cell.flip svg{transform:rotate(180deg)}
+  .cell.solvedcell{border-color:var(--bot-dk)}
+
+  #optimal{text-align:center;margin-top:14px;font-size:.8rem;color:var(--dim)}
+  #optimal .sol{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+
+  #facts{margin-top:10px;text-align:center;font-size:.72rem;color:var(--dim)}
+  #facts b{color:var(--ink);font-weight:500}
+
+  #history{margin-top:34px}
+  #history ol{list-style:none;display:flex;flex-direction:column;gap:8px}
+  #history li{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--dim);padding:8px 12px;
+    border:1px solid var(--line);border-radius:8px;display:flex;justify-content:space-between;gap:12px;cursor:pointer}
+  #history li:hover{color:var(--ink);background:var(--panel)}
+  #history .empty{border:1px dashed var(--line);cursor:default;justify-content:center}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
+    background:var(--ink);color:var(--plastic);font-size:.8rem;font-weight:500;padding:8px 16px;
+    border-radius:8px;opacity:0;transition:all .2s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><b>1×2×3</b> character cube scrambler</h1>
+    <span class="hint"><kbd>space</kbd> new scramble &nbsp; <kbd>c</kbd> copy</span>
+  </header>
+
+  <div id="scramble" aria-live="polite"></div>
+  <div class="legend">
+    <span class="lv"><i></i>U2 / D2 — head &amp; feet layers</span>
+    <span class="lh"><i></i>R2 / L2 — right &amp; left columns</span>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btnNew">New scramble</button>
+    <button id="btnCopy">Copy</button>
+    <label class="depth">Difficulty
+      <select id="depthSel">
+        <option value="0" selected>Random state</option>
+        <option value="3">Depth 3</option>
+        <option value="4">Depth 4</option>
+        <option value="5">Depth 5</option>
+        <option value="6">Depth 6 — hardest</option>
+      </select>
+    </label>
+  </div>
+
+  <section>
+    <h2>Resulting state — 6 pieces</h2>
+    <div id="views"></div>
+    <div id="optimal"></div>
+    <div id="facts"></div>
+  </section>
+
+  <section id="history">
+    <h2>Recent</h2>
+    <ol id="histList"></ol>
+  </section>
+</main>
+<div id="toast">Copied</div>
+
+<script>
+// ================= Model =================
+// True 1x2x3 held standing: 3 layers (head/body/feet) x 2 halves (L/R) x 1 deep.
+// Every piece exposes a front-art face and a back-art face. All moves are 180
+// degrees and self-inverse:
+//   U2/D2: head/feet layer about the vertical axis (L<->R swap, art F<->B)
+//   R2/L2: right/left column about the horizontal axis (head<->feet swap,
+//          body flips in place; pieces go upside-down, art F<->B)
+const ROWS=['head','body','feet'];
+function solved(){
+  const p=[];
+  for(let l=0;l<3;l++){
+    p.push({id:ROWS[l]+'-L', layer:l, c:'L', a:'F', f:1, homeC:'L'});
+    p.push({id:ROWS[l]+'-R', layer:l, c:'R', a:'F', f:1, homeC:'R'});
+  }
+  return p;
+}
+const flipA=a=>a==='F'?'B':'F';
+function applyMove(p,mv){
+  if(mv==='U2'||mv==='D2'){
+    const layer = mv==='U2'?0:2;
+    for(const x of p) if(x.layer===layer){ x.c = x.c==='L'?'R':'L'; x.a=flipA(x.a); }
+  }else{
+    const side = mv==='R2'?'R':'L';
+    for(const x of p) if(x.c===side){ x.layer=2-x.layer; x.a=flipA(x.a); x.f*=-1; }
+  }
+}
+const MOVES=['U2','D2','R2','L2'];
+const AXIS={U:'v',D:'v',R:'h',L:'h'};
+const key=p=>p.map(x=>x.id+x.layer+x.c+x.a+(x.f>0?'u':'d')).sort().join('|');
+
+// ================= Random-state scrambling =================
+// The puzzle has only 96 reachable states; God's number is 6. Random MOVE
+// scrambles are strictly worse here: every move is a single transposition of
+// pieces (odd permutation), so a fixed-length scramble can only ever reach
+// states matching its length's parity - half the state space is excluded.
+// Instead we do what WCA does for small puzzles: enumerate everything with a
+// BFS from solved, sample a uniformly random state, and emit the optimal move
+// sequence that produces it. Scrambles are therefore always <= 6 moves and the
+// state distribution is exactly uniform.
+const STATES=[];                 // {k, moves (from solved), depth}
+(function enumerate(){
+  const start=solved();
+  const seen=new Map([[key(start),{p:start,moves:[]}]]);
+  let frontier=[{p:start,moves:[]}];
+  while(frontier.length){
+    const next=[];
+    for(const node of frontier){
+      for(const m of MOVES){
+        const q=node.p.map(x=>({...x}));
+        applyMove(q,m);
+        const kq=key(q);
+        if(seen.has(kq)) continue;
+        const rec={p:q,moves:[...node.moves,m]};
+        seen.set(kq,rec); next.push(rec);
+      }
+    }
+    frontier=next;
+  }
+  for(const rec of seen.values())
+    STATES.push({moves:rec.moves, depth:rec.moves.length, state:rec.p});
+})();
+const DEPTH_COUNTS = STATES.reduce((o,s)=>(o[s.depth]=(o[s.depth]||0)+1,o),{});
+
+function randomScramble(depthFilter){
+  const pool = depthFilter
+    ? STATES.filter(s=>s.depth===depthFilter)
+    : STATES.filter(s=>s.depth>=2);   // uniform over states, excluding trivial ones
+  return pool[Math.floor(Math.random()*pool.length)].moves;
+}
+
+// ================= Art =================
+const ART={
+ 'head-front':`<line x1="40" y1="4" x2="40" y2="10" stroke="#7fd1c0" stroke-width="3"/><circle cx="40" cy="4" r="3" fill="#f07f1a"/><rect x="14" y="10" width="52" height="38" rx="9" fill="#7fd1c0"/><circle cx="30" cy="27" r="5" fill="#141416"/><circle cx="50" cy="27" r="5" fill="#141416"/><rect x="31" y="38" width="18" height="4" rx="2" fill="#141416"/>`,
+ 'head-back':`<line x1="40" y1="4" x2="40" y2="10" stroke="#4aa392" stroke-width="3"/><rect x="14" y="10" width="52" height="38" rx="9" fill="#4aa392"/><rect x="24" y="20" width="32" height="18" rx="4" fill="none" stroke="#141416" stroke-width="2"/><line x1="24" y1="29" x2="56" y2="29" stroke="#141416" stroke-width="2"/>`,
+ 'body-front':`<rect x="16" y="6" width="48" height="40" rx="7" fill="#7fd1c0"/><rect x="6" y="12" width="8" height="22" rx="4" fill="#7fd1c0"/><rect x="66" y="12" width="8" height="22" rx="4" fill="#7fd1c0"/><circle cx="40" cy="20" r="4" fill="#f07f1a"/><rect x="28" y="30" width="24" height="9" rx="2" fill="#141416"/>`,
+ 'body-back':`<rect x="16" y="6" width="48" height="40" rx="7" fill="#4aa392"/><rect x="6" y="12" width="8" height="22" rx="4" fill="#4aa392"/><rect x="66" y="12" width="8" height="22" rx="4" fill="#4aa392"/><line x1="40" y1="10" x2="40" y2="42" stroke="#141416" stroke-width="2"/><circle cx="40" cy="16" r="2" fill="#141416"/><circle cx="40" cy="26" r="2" fill="#141416"/><circle cx="40" cy="36" r="2" fill="#141416"/>`,
+ 'feet-front':`<rect x="22" y="4" width="10" height="22" rx="4" fill="#7fd1c0"/><rect x="48" y="4" width="10" height="22" rx="4" fill="#7fd1c0"/><rect x="12" y="26" width="26" height="16" rx="7" fill="#f07f1a"/><rect x="42" y="26" width="26" height="16" rx="7" fill="#f07f1a"/>`,
+ 'feet-back':`<rect x="22" y="4" width="10" height="22" rx="4" fill="#4aa392"/><rect x="48" y="4" width="10" height="22" rx="4" fill="#4aa392"/><rect x="18" y="26" width="18" height="16" rx="6" fill="#c96a15"/><rect x="44" y="26" width="18" height="16" rx="6" fill="#c96a15"/>`
+};
+function halfSVG(row, side, crop){
+  return `<svg viewBox="${crop==='L'?0:40} 0 40 52">${ART[row+'-'+side]}</svg>`;
+}
+
+// ================= Rendering =================
+const viewsEl=document.getElementById('views');
+const optEl=document.getElementById('optimal');
+const factsEl=document.getElementById('facts');
+function renderViews(p, depth){
+  viewsEl.innerHTML='';
+  for(const dir of ['F','B']){
+    const col=document.createElement('div'); col.className='viewcol';
+    const lab=document.createElement('div'); lab.className='viewlabel';
+    lab.textContent=(dir==='F'?'front':'back')+' view'; col.appendChild(lab);
+    const stack=document.createElement('div'); stack.className='stack';
+    for(let l=0;l<3;l++){
+      const strip=document.createElement('div'); strip.className='rowstrip';
+      const order = dir==='F' ? ['L','R'] : ['R','L'];
+      for(const cpos of order){
+        const piece=p.find(x=>x.layer===l&&x.c===cpos);
+        const cell=document.createElement('div'); cell.className='cell';
+        const showFrontArt = piece.a===dir;
+        const artSide = showFrontArt?'front':'back';
+        const row = piece.id.split('-')[0];
+        const home = piece.id.split('-')[1];
+        const crop = showFrontArt ? home : (home==='L'?'R':'L');
+        cell.innerHTML=halfSVG(row,artSide,crop);
+        if(piece.f===-1) cell.classList.add('flip');
+        if(piece.layer===ROWS.indexOf(row)&&piece.c===piece.homeC&&piece.a==='F'&&piece.f===1)
+          cell.classList.add('solvedcell');
+        strip.appendChild(cell);
+      }
+      stack.appendChild(strip);
+    }
+    col.appendChild(stack);
+    viewsEl.appendChild(col);
+  }
+  // scramble IS optimal (random-state), and every move is self-inverse:
+  // restore = the scramble read right-to-left
+  optEl.innerHTML=`This state is exactly <span class="sol">${depth}</span> moves from solved — restore by reading the scramble right to left`;
+  factsEl.innerHTML=`Puzzle facts: <b>96</b> states · God's number <b>6</b> · states by depth: `+
+    Object.entries(DEPTH_COUNTS).map(([d,n])=>`${d}:<b>${n}</b>`).join(' · ');
+}
+
+const scrEl=document.getElementById('scramble');
+function renderScramble(moves){
+  scrEl.innerHTML='';
+  moves.forEach((m,i)=>{
+    const t=document.createElement('span');
+    t.className='mv '+(AXIS[m[0]]==='h'?'h':'v');
+    t.style.animationDelay=(i*30)+'ms';
+    t.textContent=m;
+    scrEl.appendChild(t);
+  });
+}
+
+// ================= App =================
+let current=[];
+const hist=[];
+const histEl=document.getElementById('histList');
+function renderHist(){
+  histEl.innerHTML='';
+  if(!hist.length){
+    const li=document.createElement('li');
+    li.className='empty'; li.textContent='Scrambles you generate will collect here';
+    histEl.appendChild(li); return;
+  }
+  hist.forEach(mv=>{
+    const li=document.createElement('li');
+    li.textContent=mv.join(' ');
+    li.title='Click to restore';
+    li.onclick=()=>load(mv,false);
+    histEl.appendChild(li);
+  });
+}
+function load(moves,record){
+  current=moves;
+  if(record){ hist.unshift(moves); if(hist.length>5) hist.pop(); }
+  const p=solved();
+  moves.forEach(m=>applyMove(p,m));
+  renderScramble(moves);
+  renderViews(p, moves.length);
+  renderHist();
+}
+function newScramble(){ load(randomScramble(+depthSel.value), true); }
+function copyScramble(){
+  navigator.clipboard.writeText(current.join(' ')).then(()=>{
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),1200);
+  });
+}
+const depthSel=document.getElementById('depthSel');
+const toast=document.getElementById('toast');
+document.getElementById('btnNew').onclick=newScramble;
+document.getElementById('btnCopy').onclick=copyScramble;
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='SELECT'&&e.key===' ')return;
+  if(e.key===' '){e.preventDefault();newScramble();}
+  if(e.key==='c'||e.key==='C')copyScramble();
+});
+newScramble();
+</script>
+</body>
+</html>

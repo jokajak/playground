@@ -13,6 +13,13 @@ directly from GitHub Pages.
 | [Jeopardy Maker](jeopardymaker/) | A Jeopardy clone for 2–6 players on a shared screen, with a built-in board editor. | [Play](https://jokajak.github.io/playground/jeopardymaker/) |
 | [Bracket Maker](bracketmaker/) | Generates printable single-elimination tournament brackets (2–64 participants). | [Use it](https://jokajak.github.io/playground/bracketmaker/) |
 
+### Cubing
+
+| Utility | Description | Live |
+|---|---|---|
+| [1×2×3 Character Cube Scrambler](cubing/1x2x3-scrambler/) | Uniform random-state scrambles for the 1×2×3 puzzle, rendered as a character cube. | [Use it](https://jokajak.github.io/playground/cubing/1x2x3-scrambler/) |
+| [2-Look CFOP Cheat Sheet](cubing/2look-cfop-cheatsheet/) | Printable OLL/PLL algorithm reference with a finger-trick trigger table. | [Use it](https://jokajak.github.io/playground/cubing/2look-cfop-cheatsheet/) |
+
 Each utility has its own README with usage instructions and details.
 
 ## Adding a new utility

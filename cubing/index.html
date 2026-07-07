@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Playground</title>
+  <title>Cubing — Playground</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,18 +28,11 @@
 
     main { max-width: 640px; width: 100%; }
 
+    .back { display: inline-block; margin-bottom: 20px; color: var(--muted); font-size: 0.85rem; text-decoration: none; }
+    .back:hover { color: var(--accent); }
+
     h1 { font-size: 2rem; margin-bottom: 8px; }
     .tagline { color: var(--muted); margin-bottom: 40px; }
-
-    section + section { margin-top: 36px; }
-    .section-title {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 14px;
-    }
 
     .card-list { list-style: none; display: flex; flex-direction: column; gap: 16px; }
 
@@ -68,44 +61,24 @@
 </head>
 <body>
   <main>
-    <h1>Playground</h1>
-    <p class="tagline">Small, self-contained web utilities. No build step, no accounts.</p>
+    <a class="back" href="../">&larr; Playground</a>
+    <h1>Cubing</h1>
+    <p class="tagline">Tools for twisty puzzles.</p>
 
-    <section>
-      <div class="section-title">Games &amp; Tools</div>
-      <ul class="card-list">
-        <li>
-          <a class="card" href="jeopardymaker/">
-            <h2>Jeopardy Maker</h2>
-            <p>A Jeopardy clone for 2–6 players on a shared screen, with a built-in board editor.</p>
-          </a>
-        </li>
-        <li>
-          <a class="card" href="bracketmaker/">
-            <h2>Bracket Maker</h2>
-            <p>Generates printable single-elimination tournament brackets (2–64 participants).</p>
-          </a>
-        </li>
-      </ul>
-    </section>
-
-    <section>
-      <div class="section-title">Cubing</div>
-      <ul class="card-list">
-        <li>
-          <a class="card" href="cubing/1x2x3-scrambler/">
-            <h2>1×2×3 Character Cube Scrambler</h2>
-            <p>Uniform random-state scrambles for the 1×2×3 puzzle, rendered as a character cube.</p>
-          </a>
-        </li>
-        <li>
-          <a class="card" href="cubing/2look-cfop-cheatsheet/">
-            <h2>2-Look CFOP Cheat Sheet</h2>
-            <p>Printable OLL/PLL algorithm reference with a finger-trick trigger table.</p>
-          </a>
-        </li>
-      </ul>
-    </section>
+    <ul class="card-list">
+      <li>
+        <a class="card" href="1x2x3-scrambler/">
+          <h2>1×2×3 Character Cube Scrambler</h2>
+          <p>Uniform random-state scrambles for the 1×2×3 puzzle, rendered as a character cube.</p>
+        </a>
+      </li>
+      <li>
+        <a class="card" href="2look-cfop-cheatsheet/">
+          <h2>2-Look CFOP Cheat Sheet</h2>
+          <p>Printable OLL/PLL algorithm reference with a finger-trick trigger table.</p>
+        </a>
+      </li>
+    </ul>
 
     <footer>
       Source on <a href="https://github.com/jokajak/playground">GitHub</a>.
