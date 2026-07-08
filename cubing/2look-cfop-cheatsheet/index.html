@@ -81,10 +81,17 @@
     gap: 2px;
     page-break-inside: avoid;
   }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
   .card-name {
     font-size: 13.5px;
     font-weight: 700;
-    text-align: center;
+    text-align: right;
+    max-width: 6em;
   }
   .card-alg {
     font-family: 'JetBrains Mono', 'Courier New', monospace;
@@ -192,6 +199,52 @@
     body { font-size: 12.5px; }
     .no-print { display: none; }
     .triggers { page-break-inside: avoid; }
+
+    h1 {
+      font-size: 15px;
+      border-bottom-width: 2px;
+      padding-bottom: 2px;
+      margin-bottom: 3px;
+    }
+    .lead { font-size: 8.5px; margin-bottom: 2px; line-height: 1.15; }
+    .legend {
+      font-size: 8px;
+      padding: 2px 6px;
+      margin-bottom: 3px;
+      line-height: 1.2;
+    }
+    .legend code { font-size: 7.5px; }
+    h2 {
+      font-size: 9px;
+      padding: 1px 6px;
+      margin: 3px 0 2px;
+    }
+    .notation {
+      font-size: 8px;
+      padding: 2px 6px;
+      margin-top: 3px;
+      line-height: 1.15;
+    }
+    .triggers .subtitle {
+      font-size: 8px !important;
+      line-height: 1.15 !important;
+      margin-bottom: 3px !important;
+    }
+    table.trig { font-size: 8.5px; margin-top: 1px; }
+    table.trig th { font-size: 8px; padding: 1px 5px; }
+    table.trig td { padding: 1px 5px; }
+
+    .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 2px; }
+    .card { padding: 2px; gap: 0px; }
+    .card-head { gap: 4px; }
+    svg.cube { width: 46px !important; height: 46px !important; }
+    .card-name { font-size: 10px; }
+    .card-alg { font-size: 9px; line-height: 1.1; }
+    .mk, .rec, .altnote { font-size: 7.5px; line-height: 1.1; }
+    .alt { font-size: 8px; line-height: 1.1; padding-top: 1px; margin-top: 1px; }
+    .alt .tag { font-size: 6.5px; }
+    table.trig td { line-height: 1.15; }
+    h2 { margin: 2px 0 1px; }
   }
   .no-print {
     position: fixed; top: 8px; right: 8px;
@@ -697,8 +750,10 @@ const pllEdges = [
 function cardHTML(c, svg) {
   return `
     <div class="card">
-      <div class="card-name">${c.name}</div>
-      ${svg}
+      <div class="card-head">
+        <div class="card-name">${c.name}</div>
+        ${svg}
+      </div>
       <div class="card-alg">${hl(c.alg)}</div>
       ${c.mk ? `<div class="mk">${c.mk}</div>` : ''}
       ${c.note ? `<div class="rec">${c.note}</div>` : ''}
