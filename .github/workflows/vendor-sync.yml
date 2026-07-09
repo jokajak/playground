@@ -1,0 +1,30 @@
+name: vendor-sync
+
+# Fails when qrcodemaker/src/vendor/ doesn't match the version locked in
+# qrcodemaker/package-lock.json — e.g. on a Dependabot bump PR until someone
+# runs `npm install && npm run sync-vendor` and commits the result.
+on:
+  pull_request:
+    paths:
+      - "qrcodemaker/**"
+      - ".github/workflows/vendor-sync.yml"
+  push:
+    branches: [main]
+    paths:
+      - "qrcodemaker/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: qrcodemaker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm run sync-vendor
+      - name: Vendored file must match the locked dependency version
+        run: git diff --exit-code -- src/vendor/

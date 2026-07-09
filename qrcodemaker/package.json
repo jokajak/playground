@@ -1,0 +1,11 @@
+{
+  "name": "qrcodemaker",
+  "private": true,
+  "description": "Tracks the version of the QR library vendored into src/vendor/qrcode.js. The page itself has no build step; run `npm run sync-vendor` after bumping the dependency.",
+  "scripts": {
+    "sync-vendor": "node tools/sync-vendor.js"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4"
+  }
+}

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Maker</title>
+  <style>
+    /* ── Reset + base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f3f4f6;
+      --panel:   #ffffff;
+      --ink:     #111827;
+      --muted:   #6b7280;
+      --accent:  #1d4ed8;
+      --border:  #e5e7eb;
+      --danger:  #b91c1c;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+    }
+
+    button, select, input, textarea { font-family: inherit; }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    header {
+      padding: 16px 24px 0;
+    }
+    header h1 { font-size: 1.4rem; }
+    header p  { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 20px 24px 32px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Controls panel ───────────────────────────────────────────────────── */
+    .controls {
+      flex: 0 1 340px;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .control { display: flex; flex-direction: column; gap: 5px; }
+    .control > label,
+    fieldset > legend {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 72px;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      line-height: 1.35;
+    }
+    textarea:focus, select:focus, input:focus, button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    select {
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+
+    .row { display: flex; gap: 14px; }
+    .row .control { flex: 1; }
+
+    input[type="color"] {
+      width: 100%;
+      height: 34px;
+      padding: 2px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    input[type="range"] { width: 100%; }
+    .range-value { font-size: 0.8rem; color: var(--muted); }
+
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    fieldset > legend { padding: 0 6px; }
+
+    .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.35; }
+    .hint.warn { color: var(--danger); }
+
+    .file-row { display: flex; align-items: center; gap: 10px; }
+    .file-row input[type="file"] { display: none; }
+
+    button {
+      padding: 9px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    button.primary:hover { background: #1e40af; }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-color: #d1d5db;
+      background: #f9fafb;
+      color: var(--muted);
+    }
+    button.primary:disabled { background: #93a6e8; border-color: #93a6e8; color: #fff; }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .preset-grid button {
+      padding: 7px 0;
+      font-size: 0.8rem;
+    }
+
+    #error {
+      display: none;
+      font-size: 0.85rem;
+      color: var(--danger);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    #error.show { display: block; }
+
+    /* ── Preview ──────────────────────────────────────────────────────────── */
+    .preview {
+      flex: 1 1 420px;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .canvas-frame {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background:
+        repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 0 0 / 20px 20px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 320px;
+    }
+    #canvas {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 4px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+    }
+    #canvas.draggable { cursor: grab; }
+    #canvas.dragging  { cursor: grabbing; }
+
+    .preview-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    footer {
+      padding: 0 24px 20px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+    }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>QR Code Maker</h1>
+    <p>Generate a QR code, optionally stamped onto a picture. Everything runs in your browser — nothing is uploaded.</p>
+  </header>
+
+  <main>
+    <div class="controls">
+      <div class="control">
+        <label for="text">Content (URL or text)</label>
+        <textarea id="text" placeholder="https://example.com" spellcheck="false"></textarea>
+      </div>
+
+      <div id="error" role="alert"></div>
+
+      <div class="row">
+        <div class="control">
+          <label for="ec">Error correction</label>
+          <select id="ec">
+            <option value="L">L — low (7%)</option>
+            <option value="M" selected>M — medium (15%)</option>
+            <option value="Q">Q — quartile (25%)</option>
+            <option value="H">H — high (30%)</option>
+          </select>
+        </div>
+        <div class="control" id="export-size-control">
+          <label for="export-size">Export size</label>
+          <select id="export-size">
+            <option value="256">256 px</option>
+            <option value="512" selected>512 px</option>
+            <option value="1024">1024 px</option>
+            <option value="2048">2048 px</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="control">
+          <label for="fg">Code color</label>
+          <input type="color" id="fg" value="#111827">
+        </div>
+        <div class="control">
+          <label for="bg">Background</label>
+          <input type="color" id="bg" value="#ffffff">
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Embed in a picture (optional)</legend>
+        <div class="file-row">
+          <input type="file" id="image-input" accept="image/*">
+          <button type="button" id="choose-image">Choose image…</button>
+          <button type="button" id="remove-image" hidden>Remove</button>
+        </div>
+        <p class="hint" id="image-hint">Pick a photo or graphic and the QR code is stamped onto it. Drag the code on the preview to reposition it.</p>
+
+        <div class="control" id="scale-control" hidden>
+          <label for="scale">QR size <span class="range-value" id="scale-value"></span></label>
+          <input type="range" id="scale" min="10" max="60" value="25" step="1">
+        </div>
+
+        <div class="control" id="position-control" hidden>
+          <label>Position</label>
+          <div class="preset-grid">
+            <button type="button" data-pos="tl" title="Top left">↖</button>
+            <button type="button" data-pos="tr" title="Top right">↗</button>
+            <button type="button" data-pos="c"  title="Center">•</button>
+            <button type="button" data-pos="bl" title="Bottom left">↙</button>
+            <button type="button" data-pos="br" title="Bottom right">↘</button>
+          </div>
+        </div>
+
+        <p class="hint" id="ec-hint" hidden>Error correction was raised to <strong>H</strong> — recommended when the code sits on a busy image.</p>
+      </fieldset>
+
+      <button type="button" class="primary" id="download" disabled>Download PNG</button>
+    </div>
+
+    <div class="preview">
+      <div class="canvas-frame">
+        <canvas id="canvas" width="512" height="512"></canvas>
+      </div>
+      <div class="preview-meta" id="meta"></div>
+    </div>
+  </main>
+
+  <footer>
+    QR Code is a registered trademark of DENSO WAVE. Encoding by
+    <a href="https://github.com/kazuhikoarase/qrcode-generator">qrcode-generator</a> (MIT).
+  </footer>
+
+  <script src="src/vendor/qrcode.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

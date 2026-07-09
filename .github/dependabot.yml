@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Tracks qrcode-generator, which is vendored into qrcodemaker/src/vendor/.
+  # After merging a bump, run `npm install && npm run sync-vendor` in
+  # qrcodemaker/ to refresh the vendored file — the vendor-sync CI check
+  # fails on the Dependabot PR until that's done.
+  - package-ecosystem: "npm"
+    directory: "/qrcodemaker"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

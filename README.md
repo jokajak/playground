@@ -12,6 +12,7 @@ directly from GitHub Pages.
 |---|---|---|
 | [Jeopardy Maker](jeopardymaker/) | A Jeopardy clone for 2–6 players on a shared screen, with a built-in board editor. | [Play](https://jokajak.github.io/playground/jeopardymaker/) |
 | [Bracket Maker](bracketmaker/) | Generates printable single-elimination tournament brackets (2–64 participants). | [Use it](https://jokajak.github.io/playground/bracketmaker/) |
+| [QR Code Maker](qrcodemaker/) | Generates QR codes, with optional embedding onto an uploaded picture. | [Use it](https://jokajak.github.io/playground/qrcodemaker/) |
 
 ### Cubing
 
