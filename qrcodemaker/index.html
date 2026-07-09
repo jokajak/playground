@@ -162,6 +162,36 @@
       font-size: 0.8rem;
     }
 
+    .seg {
+      display: flex;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .seg button {
+      flex: 1;
+      border: none;
+      border-radius: 0;
+      background: #fff;
+      padding: 8px 0;
+    }
+    .seg button + button { border-left: 1px solid #d1d5db; }
+    .seg button.active {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    #scan-badge {
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+    #scan-badge.checking { color: var(--muted); background: #f9fafb; }
+    #scan-badge.ok   { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+    #scan-badge.warn { color: var(--danger); background: #fef2f2; border-color: #fecaca; }
+
     #error {
       display: none;
       font-size: 0.85rem;
@@ -256,7 +286,7 @@
         </div>
       </div>
 
-      <div class="row">
+      <div class="row" id="color-row">
         <div class="control">
           <label for="fg">Code color</label>
           <input type="color" id="fg" value="#111827">
@@ -274,7 +304,21 @@
           <button type="button" id="choose-image">Choose image…</button>
           <button type="button" id="remove-image" hidden>Remove</button>
         </div>
-        <p class="hint" id="image-hint">Pick a photo or graphic and the QR code is stamped onto it. Drag the code on the preview to reposition it.</p>
+        <p class="hint" id="image-hint">Pick a photo or graphic and the QR code is woven into it. Drag the code on the preview to reposition it.</p>
+
+        <div class="control" id="mode-control" hidden>
+          <label>Style</label>
+          <div class="seg">
+            <button type="button" id="mode-blend" class="active">Blend</button>
+            <button type="button" id="mode-stamp">Stamp</button>
+          </div>
+          <p class="hint">Blend weaves the code into the picture — lower strength looks better, higher strength scans better. Stamp is a solid tile: less pretty, most scannable.</p>
+        </div>
+
+        <div class="control" id="strength-control" hidden>
+          <label for="blend-strength">Blend strength <span class="range-value" id="strength-value"></span></label>
+          <input type="range" id="blend-strength" min="10" max="100" value="55" step="1">
+        </div>
 
         <div class="control" id="scale-control" hidden>
           <label for="scale">QR size <span class="range-value" id="scale-value"></span></label>
@@ -302,16 +346,19 @@
       <div class="canvas-frame">
         <canvas id="canvas" width="512" height="512"></canvas>
       </div>
+      <div id="scan-badge" hidden></div>
       <div class="preview-meta" id="meta"></div>
     </div>
   </main>
 
   <footer>
     QR Code is a registered trademark of DENSO WAVE. Encoding by
-    <a href="https://github.com/kazuhikoarase/qrcode-generator">qrcode-generator</a> (MIT).
+    <a href="https://github.com/kazuhikoarase/qrcode-generator">qrcode-generator</a> (MIT);
+    scan checking by <a href="https://github.com/cozmo/jsQR">jsQR</a> (Apache-2.0).
   </footer>
 
   <script src="src/vendor/qrcode.js"></script>
+  <script src="src/vendor/jsqr.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>
