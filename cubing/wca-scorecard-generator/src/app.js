@@ -54,22 +54,22 @@
     var card = document.createElement('div');
     card.className = 'scorecard';
 
-    // Header: competition (left) + round/group (right).
+    // Header: competition.
     var head = document.createElement('div');
     head.className = 'sc-head';
     var comp = document.createElement('div');
     comp.className = 'sc-comp';
     comp.appendChild(line('Competition'));
-    var round = document.createElement('div');
-    round.className = 'sc-round';
-    round.appendChild(line('Round', { fixed: true }));
-    round.appendChild(line('Group', { fixed: true }));
     head.appendChild(comp);
-    head.appendChild(round);
     card.appendChild(head);
 
-    // Event.
-    card.appendChild(line('Event'));
+    // Event + round + group, all on one line.
+    var eventRow = document.createElement('div');
+    eventRow.className = 'sc-row';
+    eventRow.appendChild(line('Event'));
+    eventRow.appendChild(line('Round', { fixed: true }));
+    eventRow.appendChild(line('Group', { fixed: true }));
+    card.appendChild(eventRow);
 
     // Name + ID.
     var idRow = document.createElement('div');
