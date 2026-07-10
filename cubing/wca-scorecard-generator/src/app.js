@@ -9,11 +9,14 @@
   'use strict';
 
   var els = {
-    format: document.getElementById('format'),
-    extra:  document.getElementById('extra'),
-    count:  document.getElementById('count'),
-    print:  document.getElementById('print'),
-    sheet:  document.getElementById('sheet')
+    format:       document.getElementById('format'),
+    extra:        document.getElementById('extra'),
+    count:        document.getElementById('count'),
+    print:        document.getElementById('print'),
+    sheet:        document.getElementById('sheet'),
+    prefillNames: document.getElementById('prefill-names'),
+    prefillYear:  document.getElementById('prefill-year'),
+    prefillApply: document.getElementById('prefill-apply')
   };
 
   // WCA round formats (regulation 9b): Bo1/Bo2/Bo3 (best single of N),
@@ -215,10 +218,59 @@
     restoreValues(saved);
   }
 
+  // WCA IDs are YEAR + first four letters of the last name (uppercase,
+  // padded with X if shorter) + a two-digit sequence number, e.g.
+  // "2019SMIT01". The sequence starts at 01 and increments only when a
+  // later name in the same batch collides on year+code.
+  function lastNameCode(fullName) {
+    var words = fullName.split(/\s+/).filter(Boolean);
+    var lastWord = words.length > 1 ? words[words.length - 1] : (words[0] || '');
+    var letters = lastWord.replace(/[^A-Za-z]/g, '').toUpperCase();
+    return (letters + 'XXXX').slice(0, 4);
+  }
+
+  function parsePrefillLines(text) {
+    var seqByKey = {};
+    return text.split('\n')
+      .map(function (line) { return line.trim(); })
+      .filter(Boolean)
+      .map(function (line) {
+        var parts = line.split(',');
+        var name = parts[0].trim();
+        var wcaId = parts[1] ? parts[1].trim().toUpperCase() : '';
+        if (!wcaId) {
+          var year = clampInt(els.prefillYear.value, 1950, 2099, new Date().getFullYear());
+          var key = year + lastNameCode(name);
+          seqByKey[key] = (seqByKey[key] || 0) + 1;
+          wcaId = key + (seqByKey[key] < 10 ? '0' : '') + seqByKey[key];
+        }
+        return { name: name, wcaId: wcaId };
+      });
+  }
+
+  function applyPrefill() {
+    var entries = parsePrefillLines(els.prefillNames.value);
+    if (!entries.length) { return; }
+
+    els.count.value = clampInt(entries.length, 1, 200, entries.length);
+    render();
+
+    var cards = els.sheet.querySelectorAll('.scorecard');
+    for (var i = 0; i < entries.length && i < cards.length; i++) {
+      var nameInput = cards[i].querySelector('input[data-field="name"]');
+      var idInput = cards[i].querySelector('input[data-field="wca-id"]');
+      if (nameInput) { nameInput.value = entries[i].name; }
+      if (idInput) { idInput.value = entries[i].wcaId; }
+    }
+  }
+
+  els.prefillYear.value = new Date().getFullYear();
+
   els.format.addEventListener('change', render);
   els.extra.addEventListener('input', render);
   els.count.addEventListener('input', render);
   els.print.addEventListener('click', function () { window.print(); });
+  els.prefillApply.addEventListener('click', applyPrefill);
 
   render();
 })();

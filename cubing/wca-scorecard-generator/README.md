@@ -38,6 +38,15 @@ python3 -m http.server 8000
    and cutoff directly into each card — every card is independent, so
    different cards can have different names or even different competitions.
    Leave any field blank to fill it in by hand later.
+
+   To fill in names in bulk, open **Prefill from a list of names** and paste
+   one name per line — this sets **Scorecards** to match and fills each
+   card's Name/WCA ID in order. Add a WCA ID after a comma
+   (`Jane Doe, 2019DOEJ01`) to use it as-is; otherwise one is generated in
+   the standard format: **ID year** + the first four letters of the last
+   name (uppercase, padded with `X` if shorter) + a two-digit sequence
+   number that increments when two names in the list land on the same
+   year+code. A single-word name is treated as its own last name.
 4. Hit **Print**. The controls disappear and the cards print four to a Letter
    page.
 5. Fill in results and signatures by hand.

@@ -85,6 +85,46 @@
 
   .hint { color: var(--muted); font-size: 0.82rem; margin: 14px 2px 0; line-height: 1.4; }
 
+  .prefill {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 14px;
+    padding: 0 20px;
+  }
+  .prefill summary {
+    cursor: pointer;
+    padding: 13px 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+  }
+  .prefill[open] summary { border-bottom: 1px solid var(--border); }
+  .prefill-body { padding: 14px 0 18px; }
+  .prefill-hint { color: var(--muted); font-size: 0.82rem; line-height: 1.4; margin-bottom: 10px; }
+  .prefill-hint code {
+    background: var(--bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+  #prefill-names {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .prefill-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
   /* ── Sheet of scorecards ──────────────────────────────────────────────── */
   .sheet {
     max-width: 960px;
@@ -316,6 +356,31 @@
       <div class="spacer"></div>
       <button class="print-btn" id="print">Print</button>
     </div>
+
+    <details class="prefill">
+      <summary>Prefill from a list of names</summary>
+      <div class="prefill-body">
+        <p class="prefill-hint">
+          One name per line becomes one card, in that order &mdash; this
+          replaces whatever's in <strong>Scorecards</strong> above with the
+          number of lines. Add a WCA ID after a comma to use it as-is;
+          otherwise one is generated in the standard format
+          (<code>YEAR</code> + first four letters of the last name, padded
+          with <code>X</code> if shorter, + a two-digit sequence number that
+          increments for repeated year+name combinations). A single-word
+          name is treated as its own last name.
+        </p>
+        <textarea id="prefill-names" rows="6" placeholder="Fakey McFakeface&#10;Jane Doe, 2019DOEJ01&#10;Cubey"></textarea>
+        <div class="prefill-controls">
+          <div class="field">
+            <label for="prefill-year">ID year</label>
+            <input type="number" id="prefill-year" min="1950" max="2099">
+          </div>
+          <div class="spacer"></div>
+          <button class="print-btn" id="prefill-apply" type="button">Apply</button>
+        </div>
+      </div>
+    </details>
 
     <p class="hint">
       Each card's info fields are independently editable, so different cards
