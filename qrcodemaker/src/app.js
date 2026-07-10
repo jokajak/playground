@@ -83,6 +83,7 @@
   var state = {
     image: null,          // HTMLImageElement, or null for standalone QR
     imageName: '',
+    hasAlpha: false,      // image has transparency (shape-aware center knockout)
     mode: 'merge',        // 'merge' | 'center' | 'stamp' — how the code and image combine
     strength: 55,         // merge strength, 10–100
     scalePct: 25,         // QR footprint as % of the image's shorter side
@@ -470,20 +471,72 @@
   }
 
   // Draw the loaded image centered inside a `full`-px square canvas, fit to
-  // state.logoPct of the width (aspect preserved), over a padded knockout.
+  // state.logoPct of the width (aspect preserved), over a knockout that clears
+  // the code beneath it. For a transparent logo the knockout follows the logo's
+  // silhouette, so the code flows around the shape instead of leaving a white
+  // rectangle; an opaque logo gets a rounded-rect clear area.
   function drawCenteredLogo(full) {
     var img = state.image;
     var box = full * (state.logoPct / 100);
     var k = box / Math.max(img.naturalWidth, img.naturalHeight);
     var lw = img.naturalWidth * k, lh = img.naturalHeight * k;
     var lx = (full - lw) / 2, ly = (full - lh) / 2;
-    var pad = Math.round(full * 0.015);
-    ctx.fillStyle = els.bg.value;
-    roundRectPath(lx - pad, ly - pad, lw + 2 * pad, lh + 2 * pad,
-                  Math.min(lw, lh) * 0.12 + pad);
-    ctx.fill();
+    var pad = Math.max(6, Math.round(full * 0.02));
     ctx.imageSmoothingEnabled = true;
+    if (state.hasAlpha) {
+      var halo = buildSilhouetteKnockout(img, lw, lh, pad);
+      ctx.drawImage(halo, lx - pad, ly - pad);
+    } else {
+      ctx.fillStyle = els.bg.value;
+      roundRectPath(lx - pad, ly - pad, lw + 2 * pad, lh + 2 * pad,
+                    Math.min(lw, lh) * 0.12 + pad);
+      ctx.fill();
+    }
     ctx.drawImage(img, lx, ly, lw, lh);
+  }
+
+  /* A background-colored solid copy of the logo's silhouette, dilated by `pad`
+     px so a thin quiet ring surrounds it. Returned canvas is
+     (lw+2·pad)×(lh+2·pad) with the logo at offset (pad,pad). The silhouette is
+     stamped around two rings (plus a solid center copy) — the Minkowski sum
+     with the ring fills out to a clean constant margin. */
+  function buildSilhouetteKnockout(img, lw, lh, pad) {
+    var w = Math.ceil(lw + 2 * pad), h = Math.ceil(lh + 2 * pad);
+    var sil = document.createElement('canvas');
+    sil.width = w; sil.height = h;
+    var s = sil.getContext('2d');
+    s.drawImage(img, pad, pad, lw, lh);
+    s.globalCompositeOperation = 'source-in'; // recolor the silhouette to bg
+    s.fillStyle = els.bg.value;
+    s.fillRect(0, 0, w, h);
+
+    var halo = document.createElement('canvas');
+    halo.width = w; halo.height = h;
+    var hc = halo.getContext('2d');
+    var rings = [pad, pad * 0.6];
+    for (var ri = 0; ri < rings.length; ri++) {
+      var r = rings[ri], steps = Math.max(16, Math.round(r * 3));
+      for (var i = 0; i < steps; i++) {
+        var a = i / steps * Math.PI * 2;
+        hc.drawImage(sil, Math.cos(a) * r, Math.sin(a) * r);
+      }
+    }
+    hc.drawImage(sil, 0, 0); // solid interior
+    return halo;
+  }
+
+  // True if the image has any meaningful transparency.
+  function imageHasAlpha(img) {
+    var m = 64;
+    var k = Math.min(1, m / Math.max(img.naturalWidth, img.naturalHeight));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    var g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, c.width, c.height);
+    var d = g.getImageData(0, 0, c.width, c.height).data;
+    for (var i = 3; i < d.length; i += 4) if (d[i] < 200) return true;
+    return false;
   }
 
   /* Dominant vivid color of the image, for auto-tinting the code to match the
@@ -664,6 +717,7 @@
       URL.revokeObjectURL(url);
       state.image = img;
       state.imageName = file.name.replace(/\.[^.]+$/, '');
+      state.hasAlpha = imageHasAlpha(img);
       state.pos = { x: 0.5, y: 0.5 };
 
       // A code on a busy photo — or covered by a centered logo — needs
