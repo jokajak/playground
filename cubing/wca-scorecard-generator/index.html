@@ -246,15 +246,25 @@
          small (rather than 0) since most printers can't reproduce a true
          edge-to-edge bleed and would clip anything closer to the edge. */
       height: calc(11in - 12mm);
-      gap: 5mm;
+      gap: 0;
+      border: 1.5px solid #111;
       break-after: page;
     }
     .sheet-page:last-child { break-after: auto; }
     .scorecard {
       height: 100%;
+      border: none;
+      border-radius: 0;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
+    /* Cards touch edge-to-edge; only the shared inner edges get a rule, so
+       the four cards divide with a single "+" cross through the page
+       center (plus the .sheet-page border around the outside) instead of
+       doubled-up borders or gaps between cards. */
+    .sheet-page > .scorecard:nth-child(1) { border-right: 1.5px solid #111; border-bottom: 1.5px solid #111; }
+    .sheet-page > .scorecard:nth-child(2) { border-bottom: 1.5px solid #111; }
+    .sheet-page > .scorecard:nth-child(3) { border-right: 1.5px solid #111; }
   }
 </style>
 </head>
