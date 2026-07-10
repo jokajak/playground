@@ -47,7 +47,12 @@ python3 -m http.server 8000
      image's dominant color (e.g. a blue logo yields a blue code), which you can
      override with the color pickers, and the **Logo size** slider sets how much
      of the code the logo covers. Error correction is kept at **H** so the code
-     still scans with the middle covered.
+     still scans with the middle covered. A transparent logo is even better —
+     the code is cleared along the logo's own outline, so it flows around the
+     shape instead of leaving a white box (and, clearing less of the code, the
+     logo can go a bit larger). There's no fixed size limit: push the slider up
+     and let the scannability badge tell you when a given logo has covered too
+     much to decode — that point differs from logo to logo.
    - **Stamp** places the code as a solid tile — less pretty, most scannable.
 3. In **Merge**/**Stamp**, **drag** the code on the preview to reposition it,
    use the arrow buttons for corner/center presets, and the **QR size** slider

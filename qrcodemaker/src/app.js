@@ -702,10 +702,18 @@
       }
       var ok = hits >= SCAN_MIN_HITS;
       els.scanBadge.className = ok ? 'ok' : 'warn';
-      els.scanBadge.textContent = ok
-        ? '✓ scans OK'
-        : '✗ may not scan — increase strength or size, or move to a calmer area';
+      els.scanBadge.textContent = ok ? '✓ scans OK' : failHint();
     }, 400);
+  }
+
+  // Mode-specific advice when the live decode fails — the badge is how the page
+  // auto-detects that the current settings (e.g. logo size) are too much for
+  // this particular logo/content, so there's no fixed cap to guess at.
+  function failHint() {
+    if (state.mode === 'center') {
+      return '✗ may not scan — the logo covers too much of the code; shrink it';
+    }
+    return '✗ may not scan — increase strength or size, or move to a calmer area';
   }
 
   // ── Image handling ───────────────────────────────────────────────────────
