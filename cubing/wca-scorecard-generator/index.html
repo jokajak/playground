@@ -111,7 +111,11 @@
     break-inside: avoid;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    /* Gap between the header lines (Competition/Event/Name/Time limit) and
+       the attempts table. The table has flex:1 and absorbs whatever's left
+       after this, so a bigger gap here also means a taller, more spread out
+       header area on a stretched (print) card. */
+    gap: 16px;
     color: #111;
     font-size: 12.5px;
     line-height: 1.25;
@@ -123,7 +127,7 @@
     align-items: flex-end;
     gap: 8px;
     border-bottom: 2px solid #111;
-    padding-bottom: 5px;
+    padding-bottom: 8px;
   }
   .sc-comp { flex: 1; }
   .sc-comp .sc-line { font-size: 13px; }
