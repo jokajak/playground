@@ -79,11 +79,12 @@
     eventRow.appendChild(line('Group', 'group', { fixed: true }));
     card.appendChild(eventRow);
 
-    // Name + ID.
+    // Name + ID + WCA ID.
     var idRow = document.createElement('div');
     idRow.className = 'sc-row';
     idRow.appendChild(line('Name', 'name'));
-    idRow.appendChild(line('ID', 'id', { fixed: true, width: '92px' }));
+    idRow.appendChild(line('ID', 'id', { fixed: true, width: '60px' }));
+    idRow.appendChild(line('WCA ID', 'wca-id', { fixed: true, width: '100px' }));
     card.appendChild(idRow);
 
     // Time limit + cutoff guidance.
