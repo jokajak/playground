@@ -25,8 +25,10 @@ python3 -m http.server 8000
 
 ## How to use
 
-1. Pick a **Format** — **Average of 5** gives five attempt rows, **Best of 2**
-   gives two.
+1. Pick a **Format** — both give five attempt rows; **Average of 5 (cutoff
+   after 2)** adds a marked line after attempt 2, since a WCA cutoff round
+   still runs to 5 attempts but only continues past attempt 2 if the
+   competitor beats the cutoff there.
 2. Set how many **Extra rows** (blank spares for replacement attempts) each card
    should have, and how many **Scorecards** to print.
 3. Hit **Print**. The controls disappear and the cards print four to a Letter

@@ -1,8 +1,9 @@
 /* WCA Scorecard Generator — render a stack of blank, official-style WCA
    scorecards for printing. There is no competition/competitor data to enter:
    every text field is a blank line the user fills in by hand. The only inputs
-   are structural — the round format (which sets the number of attempt rows),
-   how many blank "extra" rows to add, and how many cards to print. */
+   are structural — whether the round has a cutoff (still 5 attempt rows, but
+   marked after attempt 2), how many blank "extra" rows to add, and how many
+   cards to print. */
 (function () {
   'use strict';
 
@@ -14,8 +15,11 @@
     sheet:  document.getElementById('sheet')
   };
 
-  // Number of scored attempt rows per format.
-  var ATTEMPTS = { ao5: 5, bo2: 2 };
+  // Both formats are Average of 5 (5 attempts). The "cutoff" variant is not a
+  // separate attempt count — WCA cutoffs give everyone attempts 1-2, and only
+  // competitors who beat the cutoff in one of those earn attempts 3-5. So the
+  // card always shows 5 rows; cutoff just marks the boundary after row 2.
+  var CUTOFF_AFTER = { ao5: 0, 'ao5-cutoff': 2 };
 
   function clampInt(value, min, max, fallback) {
     var n = parseInt(value, 10);
@@ -37,7 +41,7 @@
     return wrap;
   }
 
-  function buildCard(attempts, extraRows) {
+  function buildCard(cutoffAfter, extraRows) {
     var card = document.createElement('div');
     card.className = 'scorecard';
 
@@ -75,11 +79,11 @@
     card.appendChild(guide);
 
     // Attempts table.
-    card.appendChild(buildTable(attempts, extraRows));
+    card.appendChild(buildTable(cutoffAfter, extraRows));
     return card;
   }
 
-  function buildTable(attempts, extraRows) {
+  function buildTable(cutoffAfter, extraRows) {
     var table = document.createElement('table');
     table.className = 'attempts';
 
@@ -102,7 +106,16 @@
     table.appendChild(thead);
 
     var tbody = document.createElement('tbody');
-    for (var i = 1; i <= attempts; i++) {
+    for (var i = 1; i <= 5; i++) {
+      if (cutoffAfter > 0 && i === cutoffAfter + 1) {
+        var cutoffHead = document.createElement('tr');
+        cutoffHead.className = 'cutoff-head';
+        var ctd = document.createElement('td');
+        ctd.colSpan = 4;
+        ctd.textContent = 'Must beat cutoff in an attempt above to continue';
+        cutoffHead.appendChild(ctd);
+        tbody.appendChild(cutoffHead);
+      }
       tbody.appendChild(attemptRow(String(i), 'num'));
     }
     if (extraRows > 0) {
@@ -135,13 +148,13 @@
   }
 
   function render() {
-    var attempts = ATTEMPTS[els.format.value] || 5;
+    var cutoffAfter = CUTOFF_AFTER[els.format.value] || 0;
     var extraRows = clampInt(els.extra.value, 0, 6, 2);
     var count = clampInt(els.count.value, 1, 200, 4);
 
     var frag = document.createDocumentFragment();
     for (var i = 0; i < count; i++) {
-      frag.appendChild(buildCard(attempts, extraRows));
+      frag.appendChild(buildCard(cutoffAfter, extraRows));
     }
     els.sheet.innerHTML = '';
     els.sheet.appendChild(frag);

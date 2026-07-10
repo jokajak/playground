@@ -193,6 +193,16 @@
     background: #f7f7f7;
     text-align: center;
   }
+  .cutoff-head td {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #fff3cd;
+    text-align: center;
+    border-top: 2px solid #111;
+    border-bottom: 2px solid #111;
+  }
 
   /* ── Print ────────────────────────────────────────────────────────────── */
   @page { size: Letter portrait; margin: 10mm; }
@@ -230,7 +240,7 @@
         <label for="format">Format</label>
         <select id="format">
           <option value="ao5">Average of 5</option>
-          <option value="bo2">Best of 2</option>
+          <option value="ao5-cutoff">Average of 5 (cutoff after 2)</option>
         </select>
       </div>
       <div class="field">
@@ -246,9 +256,11 @@
     </div>
 
     <p class="hint">
-      Every text field is a blank line to write on. <strong>Average of 5</strong>
-      gives 5 attempt rows; <strong>Best of 2</strong> gives 2. Extra rows are
-      blank spares for replacement attempts. Cards print four to a page.
+      Every text field is a blank line to write on. Both formats give 5 attempt
+      rows; the <strong>cutoff</strong> variant marks a line after attempt 2 —
+      a competitor must beat the cutoff in one of the first 2 attempts to earn
+      attempts 3&ndash;5. Extra rows are blank spares for replacement attempts.
+      Cards print four to a page.
     </p>
   </div>
 
