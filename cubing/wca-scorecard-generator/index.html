@@ -208,6 +208,16 @@
   table.attempts col.c-sign   { width: 11%; }
   /* Give the blank cells a writable height */
   table.attempts tbody td { height: 22px; }
+  /* When the table has extra height to fill (a stretched print card), rows
+     with no explicit height share in that leftover space. Giving the
+     label/divider rows a small explicit height keeps them noticeably more
+     compact than the numbered attempt rows, which absorb most of the extra
+     height and land within a fraction of a pixel of each other. */
+  table.attempts thead tr,
+  .extra-head,
+  .cutoff-head {
+    height: 16px;
+  }
   .extra-head td {
     font-size: 8.5px;
     font-weight: 700;
