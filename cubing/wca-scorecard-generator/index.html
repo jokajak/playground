@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WCA Scorecard Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #f3f4f6;
+    --panel:   #ffffff;
+    --ink:     #111827;
+    --muted:   #6b7280;
+    --accent:  #1d4ed8;
+    --border:  #e5e7eb;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  button, select, input { font-family: inherit; }
+
+  /* ── Controls (screen only) ───────────────────────────────────────────── */
+  .controls {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 8px;
+  }
+
+  .back { display: inline-block; margin-bottom: 16px; color: var(--muted); font-size: 0.85rem; text-decoration: none; }
+  .back:hover { color: var(--accent); }
+
+  .controls h1 { font-size: 1.8rem; margin-bottom: 6px; }
+  .controls .tagline { color: var(--muted); margin-bottom: 24px; font-size: 0.95rem; line-height: 1.4; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .field select, .field input {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    background: #fff;
+    color: var(--ink);
+  }
+  .field input[type="number"] { width: 92px; }
+  .field select { min-width: 150px; }
+
+  .spacer { flex: 1; }
+
+  .print-btn {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 7px;
+    padding: 9px 18px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .print-btn:hover { background: #1e40af; }
+
+  .hint { color: var(--muted); font-size: 0.82rem; margin: 14px 2px 0; line-height: 1.4; }
+
+  /* ── Sheet of scorecards ──────────────────────────────────────────────── */
+  .sheet {
+    max-width: 960px;
+    margin: 24px auto 60px;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .scorecard {
+    background: #fff;
+    border: 1.5px solid #111;
+    border-radius: 3px;
+    padding: 10px 12px 12px;
+    break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #111;
+    font-size: 12.5px;
+    line-height: 1.25;
+  }
+
+  .sc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px;
+    border-bottom: 2px solid #111;
+    padding-bottom: 5px;
+  }
+  .sc-comp { flex: 1; }
+  .sc-comp .sc-line { font-size: 13px; }
+  .sc-round { display: flex; gap: 10px; white-space: nowrap; }
+
+  /* A labeled blank to hand-write into: a caption above an underline. */
+  .sc-line {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+  .sc-line .cap {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333;
+    white-space: nowrap;
+  }
+  .sc-line .fill {
+    flex: 1;
+    border-bottom: 1px solid #111;
+    min-width: 24px;
+    align-self: stretch;
+  }
+  .sc-line.fixed .fill { flex: 0 0 auto; width: 42px; }
+
+  .sc-row { display: flex; gap: 12px; }
+  .sc-row > .sc-line { flex: 1; }
+
+  .sc-guidance {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+  }
+  .sc-guidance > .sc-line { flex: 1; }
+
+  /* Attempts table */
+  table.attempts {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2px;
+  }
+  table.attempts th, table.attempts td {
+    border: 1px solid #111;
+    padding: 3px 4px;
+  }
+  table.attempts th {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #f0f0f0;
+    font-weight: 700;
+  }
+  table.attempts td.num {
+    text-align: center;
+    font-weight: 700;
+    width: 22px;
+  }
+  table.attempts td.extra-num {
+    font-size: 8.5px;
+    text-align: center;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  table.attempts col.c-result { width: auto; }
+  table.attempts col.c-sign   { width: 24%; }
+  /* Give the blank cells a writable height */
+  table.attempts tbody td { height: 22px; }
+  .extra-head td {
+    font-size: 8.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #f7f7f7;
+    text-align: center;
+  }
+
+  /* ── Print ────────────────────────────────────────────────────────────── */
+  @page { size: Letter portrait; margin: 10mm; }
+
+  @media print {
+    body { background: #fff; }
+    .controls { display: none !important; }
+    .sheet {
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      gap: 6mm;
+    }
+    .scorecard {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    /* Force 4 cards (a 2x2 grid) per page: every 5th card starts a new page. */
+    .scorecard:nth-of-type(4n+1) { break-before: page; }
+    .scorecard:nth-of-type(1)    { break-before: auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <a class="back" href="../">&larr; Cubing</a>
+    <h1>WCA Scorecard Generator</h1>
+    <p class="tagline">
+      Print blank, official-style WCA scorecards for a fake competition &mdash;
+      then fill in the competition, event, names and results by hand.
+    </p>
+
+    <div class="toolbar">
+      <div class="field">
+        <label for="format">Format</label>
+        <select id="format">
+          <option value="ao5">Average of 5</option>
+          <option value="bo2">Best of 2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="extra">Extra rows</label>
+        <input type="number" id="extra" min="0" max="6" value="2">
+      </div>
+      <div class="field">
+        <label for="count">Scorecards</label>
+        <input type="number" id="count" min="1" max="200" value="4">
+      </div>
+      <div class="spacer"></div>
+      <button class="print-btn" id="print">Print</button>
+    </div>
+
+    <p class="hint">
+      Every text field is a blank line to write on. <strong>Average of 5</strong>
+      gives 5 attempt rows; <strong>Best of 2</strong> gives 2. Extra rows are
+      blank spares for replacement attempts. Cards print four to a page.
+    </p>
+  </div>
+
+  <div class="sheet" id="sheet"></div>
+
+  <script src="src/app.js"></script>
+</body>
+</html>

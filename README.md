@@ -20,6 +20,7 @@ directly from GitHub Pages.
 |---|---|---|
 | [1×2×3 Character Cube Scrambler](cubing/1x2x3-scrambler/) | Uniform random-state scrambles for the 1×2×3 puzzle, rendered as a character cube. | [Use it](https://jokajak.github.io/playground/cubing/1x2x3-scrambler/) |
 | [2-Look CFOP Cheat Sheet](cubing/2look-cfop-cheatsheet/) | Printable OLL/PLL algorithm reference with a finger-trick trigger table. | [Use it](https://jokajak.github.io/playground/cubing/2look-cfop-cheatsheet/) |
+| [WCA Scorecard Generator](cubing/wca-scorecard-generator/) | Prints blank, official-style WCA competition scorecards to fill in by hand. | [Use it](https://jokajak.github.io/playground/cubing/wca-scorecard-generator/) |
 
 Each utility has its own README with usage instructions and details.
 

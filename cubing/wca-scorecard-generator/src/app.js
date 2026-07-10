@@ -1,0 +1,156 @@
+/* WCA Scorecard Generator — render a stack of blank, official-style WCA
+   scorecards for printing. There is no competition/competitor data to enter:
+   every text field is a blank line the user fills in by hand. The only inputs
+   are structural — the round format (which sets the number of attempt rows),
+   how many blank "extra" rows to add, and how many cards to print. */
+(function () {
+  'use strict';
+
+  var els = {
+    format: document.getElementById('format'),
+    extra:  document.getElementById('extra'),
+    count:  document.getElementById('count'),
+    print:  document.getElementById('print'),
+    sheet:  document.getElementById('sheet')
+  };
+
+  // Number of scored attempt rows per format.
+  var ATTEMPTS = { ao5: 5, bo2: 2 };
+
+  function clampInt(value, min, max, fallback) {
+    var n = parseInt(value, 10);
+    if (isNaN(n)) { n = fallback; }
+    return Math.max(min, Math.min(max, n));
+  }
+
+  // A labeled blank: an uppercase caption followed by an underline to write on.
+  function line(caption, opts) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sc-line' + (opts && opts.fixed ? ' fixed' : '');
+    var cap = document.createElement('span');
+    cap.className = 'cap';
+    cap.textContent = caption;
+    var fill = document.createElement('span');
+    fill.className = 'fill';
+    wrap.appendChild(cap);
+    wrap.appendChild(fill);
+    return wrap;
+  }
+
+  function buildCard(attempts, extraRows) {
+    var card = document.createElement('div');
+    card.className = 'scorecard';
+
+    // Header: competition (left) + round/group (right).
+    var head = document.createElement('div');
+    head.className = 'sc-head';
+    var comp = document.createElement('div');
+    comp.className = 'sc-comp';
+    comp.appendChild(line('Competition'));
+    var round = document.createElement('div');
+    round.className = 'sc-round';
+    round.appendChild(line('Round', { fixed: true }));
+    round.appendChild(line('Group', { fixed: true }));
+    head.appendChild(comp);
+    head.appendChild(round);
+    card.appendChild(head);
+
+    // Event.
+    card.appendChild(line('Event'));
+
+    // Name + ID.
+    var idRow = document.createElement('div');
+    idRow.className = 'sc-row';
+    idRow.appendChild(line('Name'));
+    var id = line('ID', { fixed: true });
+    id.querySelector('.fill').style.width = '70px';
+    idRow.appendChild(id);
+    card.appendChild(idRow);
+
+    // Time limit + cutoff guidance.
+    var guide = document.createElement('div');
+    guide.className = 'sc-guidance';
+    guide.appendChild(line('Time limit'));
+    guide.appendChild(line('Cutoff'));
+    card.appendChild(guide);
+
+    // Attempts table.
+    card.appendChild(buildTable(attempts, extraRows));
+    return card;
+  }
+
+  function buildTable(attempts, extraRows) {
+    var table = document.createElement('table');
+    table.className = 'attempts';
+
+    var colgroup = document.createElement('colgroup');
+    ['c-num', 'c-result', 'c-sign', 'c-sign'].forEach(function (cls) {
+      var col = document.createElement('col');
+      col.className = cls;
+      colgroup.appendChild(col);
+    });
+    table.appendChild(colgroup);
+
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['#', 'Result', 'Judge', 'Competitor'].forEach(function (label) {
+      var th = document.createElement('th');
+      th.textContent = label;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    for (var i = 1; i <= attempts; i++) {
+      tbody.appendChild(attemptRow(String(i), 'num'));
+    }
+    if (extraRows > 0) {
+      var extraHead = document.createElement('tr');
+      extraHead.className = 'extra-head';
+      var td = document.createElement('td');
+      td.colSpan = 4;
+      td.textContent = 'Extra attempts';
+      extraHead.appendChild(td);
+      tbody.appendChild(extraHead);
+      for (var e = 1; e <= extraRows; e++) {
+        tbody.appendChild(attemptRow('E' + e, 'extra-num'));
+      }
+    }
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function attemptRow(label, numClass) {
+    var tr = document.createElement('tr');
+    var num = document.createElement('td');
+    num.className = numClass;
+    num.textContent = label;
+    tr.appendChild(num);
+    // Result, Judge, Competitor: blank writable cells.
+    for (var c = 0; c < 3; c++) {
+      tr.appendChild(document.createElement('td'));
+    }
+    return tr;
+  }
+
+  function render() {
+    var attempts = ATTEMPTS[els.format.value] || 5;
+    var extraRows = clampInt(els.extra.value, 0, 6, 2);
+    var count = clampInt(els.count.value, 1, 200, 4);
+
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < count; i++) {
+      frag.appendChild(buildCard(attempts, extraRows));
+    }
+    els.sheet.innerHTML = '';
+    els.sheet.appendChild(frag);
+  }
+
+  els.format.addEventListener('change', render);
+  els.extra.addEventListener('input', render);
+  els.count.addEventListener('input', render);
+  els.print.addEventListener('click', function () { window.print(); });
+
+  render();
+})();
