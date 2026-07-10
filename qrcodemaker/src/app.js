@@ -19,6 +19,7 @@
     imageHint:       document.getElementById('image-hint'),
     modeControl:     document.getElementById('mode-control'),
     modeMerge:       document.getElementById('mode-merge'),
+    modeCenter:      document.getElementById('mode-center'),
     modeStamp:       document.getElementById('mode-stamp'),
     strengthControl: document.getElementById('strength-control'),
     strength:        document.getElementById('merge-strength'),
@@ -26,6 +27,9 @@
     scaleControl:    document.getElementById('scale-control'),
     scale:           document.getElementById('scale'),
     scaleValue:      document.getElementById('scale-value'),
+    logoSizeControl: document.getElementById('logo-size-control'),
+    logoSize:        document.getElementById('logo-size'),
+    logoSizeValue:   document.getElementById('logo-size-value'),
     posControl:      document.getElementById('position-control'),
     ecHint:          document.getElementById('ec-hint'),
     error:           document.getElementById('error'),
@@ -79,9 +83,10 @@
   var state = {
     image: null,          // HTMLImageElement, or null for standalone QR
     imageName: '',
-    mode: 'merge',        // 'merge' | 'stamp' — how the code and image combine
+    mode: 'merge',        // 'merge' | 'center' | 'stamp' — how the code and image combine
     strength: 55,         // merge strength, 10–100
     scalePct: 25,         // QR footprint as % of the image's shorter side
+    logoPct: 22,          // 'center' mode: logo footprint as % of the code
     pos: { x: 0.5, y: 0.5 }, // normalized center of the QR on the image
   };
 
@@ -402,14 +407,17 @@
       showError('');
     }
 
-    if (state.image) {
+    if (state.image && state.mode === 'center') {
+      renderCenterLogo(qr);
+    } else if (state.image) {
       renderComposite(qr);
     } else {
       renderStandalone(qr);
     }
 
     els.download.disabled = !qr;
-    els.canvas.classList.toggle('draggable', !!(state.image && qr));
+    els.canvas.classList.toggle('draggable',
+      !!(state.image && qr && state.mode !== 'center'));
     scheduleScanCheck(qr);
   }
 
@@ -434,6 +442,95 @@
     qrRect = null;
     els.meta.textContent = qr.getModuleCount() + '×' + qr.getModuleCount() +
       ' modules · exports at ' + c.width + '×' + c.height + ' px';
+  }
+
+  /* Center-logo mode: a clean QR code (in the chosen colors) with the loaded
+     image sitting in its middle, over a rounded knockout of the background so
+     the logo reads crisply. The high error-correction level set on image load
+     recovers the modules the logo covers. */
+  function renderCenterLogo(qr) {
+    var size = parseInt(els.exportSize.value, 10);
+    if (!qr) {
+      var s0 = Math.max(256, size);
+      els.canvas.width = els.canvas.height = s0;
+      ctx.fillStyle = els.bg.value;
+      ctx.fillRect(0, 0, s0, s0);
+      drawCenteredLogo(s0);
+      qrRect = null;
+      els.meta.textContent = 'Enter content to build the code around the logo';
+      return;
+    }
+    var c = qrToCanvas(qr, size);
+    els.canvas.width = els.canvas.height = c.width;
+    ctx.drawImage(c, 0, 0);
+    drawCenteredLogo(c.width);
+    qrRect = null;
+    els.meta.textContent = qr.getModuleCount() + '×' + qr.getModuleCount() +
+      ' modules · logo ' + state.logoPct + '% · exports at ' + c.width + '×' + c.width + ' px';
+  }
+
+  // Draw the loaded image centered inside a `full`-px square canvas, fit to
+  // state.logoPct of the width (aspect preserved), over a padded knockout.
+  function drawCenteredLogo(full) {
+    var img = state.image;
+    var box = full * (state.logoPct / 100);
+    var k = box / Math.max(img.naturalWidth, img.naturalHeight);
+    var lw = img.naturalWidth * k, lh = img.naturalHeight * k;
+    var lx = (full - lw) / 2, ly = (full - lh) / 2;
+    var pad = Math.round(full * 0.015);
+    ctx.fillStyle = els.bg.value;
+    roundRectPath(lx - pad, ly - pad, lw + 2 * pad, lh + 2 * pad,
+                  Math.min(lw, lh) * 0.12 + pad);
+    ctx.fill();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(img, lx, ly, lw, lh);
+  }
+
+  /* Dominant vivid color of the image, for auto-tinting the code to match the
+     logo. Colorful pixels (skipping white/black/gray) are binned by hue; the
+     busiest hue's average color is returned, darkened if needed so it keeps
+     enough contrast against a white background to stay scannable. */
+  function pickLogoColor(img) {
+    var m = 120;
+    var k = Math.min(1, m / Math.max(img.naturalWidth, img.naturalHeight));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    var g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, c.width, c.height);
+    var d = g.getImageData(0, 0, c.width, c.height).data;
+    var BINS = 12;
+    var acc = [];
+    for (var i = 0; i < BINS; i++) acc.push({ n: 0, r: 0, g: 0, b: 0 });
+    for (var p = 0; p < d.length; p += 4) {
+      var r = d[p], gg = d[p + 1], b = d[p + 2];
+      if (d[p + 3] < 128) continue;
+      var mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2;
+      if (l > 235 || l < 25) continue;               // skip near-white / near-black
+      if (mx === 0 || (mx - mn) / mx < 0.28) continue; // skip greys
+      var o = acc[Math.min(BINS - 1, (rgbHue(r, gg, b) / 360 * BINS) | 0)];
+      o.n++; o.r += r; o.g += gg; o.b += b;
+    }
+    var best = acc[0];
+    for (i = 1; i < BINS; i++) if (acc[i].n > best.n) best = acc[i];
+    if (best.n === 0) return null;
+    var R = best.r / best.n, G = best.g / best.n, B = best.b / best.n;
+    var y = luma(R, G, B);
+    if (y > 150) { var f = 150 / y; R *= f; G *= f; B *= f; } // ensure contrast
+    return '#' + [R, G, B].map(function (v) {
+      return ('0' + Math.round(v).toString(16)).slice(-2);
+    }).join('');
+  }
+
+  function rgbHue(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+    if (d === 0) h = 0;
+    else if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    return h < 0 ? h + 360 : h;
   }
 
   function renderComposite(qr) {
@@ -569,12 +666,14 @@
       state.imageName = file.name.replace(/\.[^.]+$/, '');
       state.pos = { x: 0.5, y: 0.5 };
 
-      // A code on a busy photo needs headroom — bump to the strongest level.
+      // A code on a busy photo — or covered by a centered logo — needs
+      // headroom, so bump to the strongest error-correction level.
       if (els.ec.value !== 'H') {
         els.ec.value = 'H';
         els.ecHint.hidden = false;
       }
 
+      if (state.mode === 'center') applyLogoColor();
       els.imageHint.textContent = file.name;
       syncControlVisibility();
       render();
@@ -599,16 +698,29 @@
   function syncControlVisibility() {
     var hasImage = !!state.image;
     var merging = hasImage && state.mode === 'merge';
+    var centering = hasImage && state.mode === 'center';
     els.removeImage.hidden = !hasImage;
     els.modeControl.hidden = !hasImage;
     els.strengthControl.hidden = !merging;
-    els.scaleControl.hidden = !hasImage;
-    els.posControl.hidden = !hasImage;
-    els.exportControl.style.display = hasImage ? 'none' : '';
-    els.colorRow.hidden = merging; // merge takes its colors from the photo
+    els.scaleControl.hidden = !hasImage || centering; // "size on image" is N/A when
+    els.posControl.hidden = !hasImage || centering;   // the image sits in the code
+    els.logoSizeControl.hidden = !centering;
+    // Center mode is a standalone-style square, so it keeps the export-size
+    // and color pickers; merge takes its colors from the photo.
+    els.exportControl.style.display = (!hasImage || centering) ? '' : 'none';
+    els.colorRow.hidden = merging;
     els.modeMerge.classList.toggle('active', state.mode === 'merge');
+    els.modeCenter.classList.toggle('active', state.mode === 'center');
     els.modeStamp.classList.toggle('active', state.mode === 'stamp');
     if (!hasImage) els.scanBadge.hidden = true;
+  }
+
+  // Tint the code to the logo's dominant color (center mode). No-op if the
+  // image has no vivid color to pick.
+  function applyLogoColor() {
+    if (!state.image) return;
+    var hex = pickLogoColor(state.image);
+    if (hex) els.fg.value = hex;
   }
 
   // ── Dragging ─────────────────────────────────────────────────────────────
@@ -682,11 +794,17 @@
 
   function setMode(mode) {
     if (state.mode === mode) return;
+    var was = state.mode;
     state.mode = mode;
+    // Entering center mode tints the code to the logo; leaving it restores the
+    // default ink so a hand-picked photo tint doesn't linger on other modes.
+    if (mode === 'center') applyLogoColor();
+    else if (was === 'center') els.fg.value = '#111827';
     syncControlVisibility();
     render();
   }
   els.modeMerge.addEventListener('click', function () { setMode('merge'); });
+  els.modeCenter.addEventListener('click', function () { setMode('center'); });
   els.modeStamp.addEventListener('click', function () { setMode('stamp'); });
 
   els.strength.addEventListener('input', function () {
@@ -698,6 +816,12 @@
   els.scale.addEventListener('input', function () {
     state.scalePct = parseInt(els.scale.value, 10);
     els.scaleValue.textContent = state.scalePct + '% of the shorter side';
+    scheduleRender();
+  });
+
+  els.logoSize.addEventListener('input', function () {
+    state.logoPct = parseInt(els.logoSize.value, 10);
+    els.logoSizeValue.textContent = state.logoPct + '% of the code';
     scheduleRender();
   });
 
@@ -747,6 +871,7 @@
 
   els.scaleValue.textContent = state.scalePct + '% of the shorter side';
   els.strengthValue.textContent = state.strength + ' — subtler ↔ stronger scan';
+  els.logoSizeValue.textContent = state.logoPct + '% of the code';
   syncControlVisibility();
   render();
 

@@ -41,14 +41,24 @@ python3 -m http.server 8000
      show (drawn semi-transparent, the image shows through). The **Merge
      strength** slider trades subtlety (lower) against scanning reliability
      (higher).
+   - **Center logo** makes a clean, full QR code with the image sitting in its
+     middle — the classic "logo in a QR code" look, best for logos and graphics
+     that shouldn't be broken up. The code's module color is auto-tinted to the
+     image's dominant color (e.g. a blue logo yields a blue code), which you can
+     override with the color pickers, and the **Logo size** slider sets how much
+     of the code the logo covers. Error correction is kept at **H** so the code
+     still scans with the middle covered.
    - **Stamp** places the code as a solid tile — less pretty, most scannable.
-3. **Drag** the code on the preview to reposition it, use the arrow buttons
-   for corner/center presets, and the **QR size** slider to resize it.
+3. In **Merge**/**Stamp**, **drag** the code on the preview to reposition it,
+   use the arrow buttons for corner/center presets, and the **QR size** slider
+   to resize it. (In **Center logo** the code fills the frame, so those don't
+   apply — use **Logo size** instead.)
 4. Watch the **scannability badge** under the preview: after every change the
    page decodes its own output with a real QR reader (jsQR) and reports
    "scans OK" or "may not scan".
-5. **Download PNG** exports the combined image at the picture's native
-   resolution (very large photos are capped at 4096 px on the long side).
+5. **Download PNG** exports the result. Merge/Stamp export at the picture's
+   native resolution (very large photos are capped at 4096 px on the long
+   side); Center logo exports a square at the chosen **Export size**.
 
 When you load an image, error correction is automatically raised to **H**
 (30% recoverable) — merged codes rely on that headroom.

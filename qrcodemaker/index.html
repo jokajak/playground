@@ -310,9 +310,10 @@
           <label>Style</label>
           <div class="seg">
             <button type="button" id="mode-merge" class="active">Merge</button>
+            <button type="button" id="mode-center">Center logo</button>
             <button type="button" id="mode-stamp">Stamp</button>
           </div>
-          <p class="hint">Merge reshapes the picture's own pixels to carry the code — nothing is pasted on top, only the corner marks every scanner needs. Lower strength is subtler, higher scans better. Stamp is a solid tile: less pretty, most scannable.</p>
+          <p class="hint">Merge reshapes the picture's own pixels to carry the code — nothing is pasted on top, only the corner marks every scanner needs. Center logo makes a clean code, tinted to the image's main color, with the image in the middle — best for logos. Stamp is a solid tile: least pretty, most scannable.</p>
         </div>
 
         <div class="control" id="strength-control" hidden>
@@ -323,6 +324,11 @@
         <div class="control" id="scale-control" hidden>
           <label for="scale">QR size <span class="range-value" id="scale-value"></span></label>
           <input type="range" id="scale" min="10" max="100" value="25" step="1">
+        </div>
+
+        <div class="control" id="logo-size-control" hidden>
+          <label for="logo-size">Logo size <span class="range-value" id="logo-size-value"></span></label>
+          <input type="range" id="logo-size" min="10" max="32" value="22" step="1">
         </div>
 
         <div class="control" id="position-control" hidden>
