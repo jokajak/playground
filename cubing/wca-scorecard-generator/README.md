@@ -2,8 +2,9 @@
 
 Prints blank, official-style WCA competition scorecards so you can run a fake
 competition for fake people at home. Every text field — competition name,
-event, round, group, competitor name, ID, time limit, cutoff — is a blank line
-you fill in by hand; the tool just lays out clean, consistent cards to print.
+event, round, group, competitor name, ID, time limit, cutoff, and per-attempt
+scrambler/judge/competitor signatures — is a blank line you fill in by hand;
+the tool just lays out clean, consistent cards to print.
 
 Modeled on the scorecards produced by
 [Goosly/wca-scorecards](https://github.com/Goosly/wca-scorecards), but with no

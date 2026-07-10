@@ -97,7 +97,7 @@
     table.className = 'attempts';
 
     var colgroup = document.createElement('colgroup');
-    ['c-num', 'c-result', 'c-sign', 'c-sign'].forEach(function (cls) {
+    ['c-num', 'c-sign', 'c-result', 'c-sign', 'c-sign'].forEach(function (cls) {
       var col = document.createElement('col');
       col.className = cls;
       colgroup.appendChild(col);
@@ -106,7 +106,7 @@
 
     var thead = document.createElement('thead');
     var hr = document.createElement('tr');
-    ['#', 'Result', 'Judge', 'Competitor'].forEach(function (label) {
+    ['#', 'Scrambler', 'Result', 'Judge', 'Competitor'].forEach(function (label) {
       var th = document.createElement('th');
       th.textContent = label;
       hr.appendChild(th);
@@ -120,7 +120,7 @@
         var cutoffHead = document.createElement('tr');
         cutoffHead.className = 'cutoff-head';
         var ctd = document.createElement('td');
-        ctd.colSpan = 4;
+        ctd.colSpan = 5;
         ctd.textContent = 'Must beat cutoff in an attempt above to continue';
         cutoffHead.appendChild(ctd);
         tbody.appendChild(cutoffHead);
@@ -131,7 +131,7 @@
       var extraHead = document.createElement('tr');
       extraHead.className = 'extra-head';
       var td = document.createElement('td');
-      td.colSpan = 4;
+      td.colSpan = 5;
       td.textContent = 'Extra attempts';
       extraHead.appendChild(td);
       tbody.appendChild(extraHead);
@@ -149,8 +149,8 @@
     num.className = numClass;
     num.textContent = label;
     tr.appendChild(num);
-    // Result, Judge, Competitor: blank writable cells.
-    for (var c = 0; c < 3; c++) {
+    // Scrambler, Result, Judge, Competitor: blank writable cells.
+    for (var c = 0; c < 4; c++) {
       tr.appendChild(document.createElement('td'));
     }
     return tr;
