@@ -218,15 +218,14 @@
     restoreValues(saved);
   }
 
-  // WCA IDs are YEAR + first four letters of the last name (uppercase,
-  // padded with X if shorter) + a two-digit sequence number, e.g.
+  // WCA IDs are YEAR + up to the first four letters of the last name
+  // (uppercase, unpadded if shorter) + a two-digit sequence number, e.g.
   // "2019SMIT01". The sequence starts at 01 and increments only when a
   // later name in the same batch collides on year+code.
   function lastNameCode(fullName) {
     var words = fullName.split(/\s+/).filter(Boolean);
     var lastWord = words.length > 1 ? words[words.length - 1] : (words[0] || '');
-    var letters = lastWord.replace(/[^A-Za-z]/g, '').toUpperCase();
-    return (letters + 'XXXX').slice(0, 4);
+    return lastWord.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 4);
   }
 
   function parsePrefillLines(text) {
