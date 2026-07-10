@@ -191,6 +191,8 @@
     }
   }
 
+  var CARDS_PER_PAGE = 4;
+
   function render() {
     var format = FORMATS[els.format.value] || FORMATS.ao5;
     var extraRows = clampInt(els.extra.value, 0, 6, 2);
@@ -198,8 +200,14 @@
     var saved = collectValues();
 
     var frag = document.createDocumentFragment();
+    var page = null;
     for (var i = 0; i < count; i++) {
-      frag.appendChild(buildCard(format.attempts, format.cutoffAfter, extraRows));
+      if (i % CARDS_PER_PAGE === 0) {
+        page = document.createElement('div');
+        page.className = 'sheet-page';
+        frag.appendChild(page);
+      }
+      page.appendChild(buildCard(format.attempts, format.cutoffAfter, extraRows));
     }
     els.sheet.innerHTML = '';
     els.sheet.appendChild(frag);
