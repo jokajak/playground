@@ -90,16 +90,8 @@
     max-width: 960px;
     margin: 24px auto 60px;
     padding: 0 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
-  /* One printed page's worth of cards: a 2x2 grid, four per page. */
-  .sheet-page {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
     gap: 10px;
   }
 
@@ -234,22 +226,15 @@
       max-width: none;
       margin: 0;
       padding: 0;
-      gap: 0;
-    }
-    .sheet-page {
-      /* Fill the printable area (Letter minus the @page margins) so the
-         four cards occupy the whole page instead of clustering at the top
-         with blank paper below. */
-      height: calc(11in - 20mm);
       gap: 6mm;
-      break-after: page;
     }
-    .sheet-page:last-child { break-after: auto; }
     .scorecard {
-      height: 100%;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
+    /* Force 4 cards (a 2x2 grid) per page: every 5th card starts a new page. */
+    .scorecard:nth-of-type(4n+1) { break-before: page; }
+    .scorecard:nth-of-type(1)    { break-before: auto; }
   }
 </style>
 </head>
