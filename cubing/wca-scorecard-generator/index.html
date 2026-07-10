@@ -136,10 +136,22 @@
   }
   .sc-line .fill {
     flex: 1;
-    border-bottom: 1px solid #111;
     min-width: 24px;
     align-self: stretch;
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid #111;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    padding: 0 2px;
+    margin: 0;
+    font: inherit;
+    color: inherit;
   }
+  .sc-line .fill:focus { background: #eef4ff; }
   .sc-line.fixed .fill { flex: 0 0 auto; width: 42px; }
 
   .sc-row { display: flex; gap: 12px; }
@@ -231,8 +243,10 @@
     <a class="back" href="../">&larr; Cubing</a>
     <h1>WCA Scorecard Generator</h1>
     <p class="tagline">
-      Print blank, official-style WCA scorecards for a fake competition &mdash;
-      then fill in the competition, event, names and results by hand.
+      Print official-style WCA scorecards for a fake competition. Type the
+      competition, event, round, group, name, ID, time limit and cutoff
+      directly into each card, or leave any of them blank to fill in by hand
+      &mdash; results and signatures are always hand-written.
     </p>
 
     <div class="toolbar">
@@ -260,13 +274,14 @@
     </div>
 
     <p class="hint">
-      Every text field is a blank line to write on. Formats set the attempt
-      count (Bo1&nbsp;=&nbsp;1, Bo2&nbsp;=&nbsp;2, Bo3/Mo3&nbsp;=&nbsp;3,
+      Each card's info fields are independently editable, so different cards
+      can have different names, IDs, or even competitions. Formats set the
+      attempt count (Bo1&nbsp;=&nbsp;1, Bo2&nbsp;=&nbsp;2, Bo3/Mo3&nbsp;=&nbsp;3,
       Ao5&nbsp;=&nbsp;5). The <strong>cutoff</strong> variant is still 5 rows,
       with a marked line after attempt 2 &mdash; a competitor must beat the
       cutoff in one of the first 2 attempts to earn attempts 3&ndash;5. Extra
-      rows are blank spares for replacement attempts. Cards print four to a
-      page.
+      rows are blank spares for replacement attempts. Results and signatures
+      are always blank to hand-write. Cards print four to a page.
     </p>
   </div>
 

@@ -1,10 +1,11 @@
 # WCA Scorecard Generator
 
-Prints blank, official-style WCA competition scorecards so you can run a fake
-competition for fake people at home. Every text field — competition name,
-event, round, group, competitor name, ID, time limit, cutoff, and per-attempt
-scrambler/judge/competitor signatures — is a blank line you fill in by hand;
-the tool just lays out clean, consistent cards to print.
+Prints official-style WCA competition scorecards so you can run a fake
+competition for fake people at home. Competition name, event, round, group,
+competitor name, ID, time limit, and cutoff are editable right on each
+card — type them in, or leave any of them blank to fill in by hand. Results
+and the per-attempt scrambler/judge/competitor signatures are always blank
+for hand-writing.
 
 Modeled on the scorecards produced by
 [Goosly/wca-scorecards](https://github.com/Goosly/wca-scorecards), but with no
@@ -33,6 +34,10 @@ python3 -m http.server 8000
    if the competitor beats the cutoff there.
 2. Set how many **Extra rows** (blank spares for replacement attempts) each card
    should have, and how many **Scorecards** to print.
-3. Hit **Print**. The controls disappear and the cards print four to a Letter
+3. Type the competition, event, round, group, name, ID, time limit and cutoff
+   directly into each card — every card is independent, so different cards can
+   have different names or even different competitions. Leave any field blank
+   to fill it in by hand later.
+4. Hit **Print**. The controls disappear and the cards print four to a Letter
    page.
-4. Fill in the competition, event, names and results by hand.
+5. Fill in results and signatures by hand.

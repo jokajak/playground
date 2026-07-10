@@ -1,9 +1,10 @@
 /* WCA Scorecard Generator — render a stack of blank, official-style WCA
-   scorecards for printing. There is no competition/competitor data to enter:
-   every text field is a blank line the user fills in by hand. The only inputs
-   are structural — the round format (which sets the attempt count, and for
-   the cutoff variant, marks the boundary after attempt 2), how many blank
-   "extra" rows to add, and how many cards to print. */
+   scorecards for printing. Competition/Round/Event/Group/Name/ID/Time
+   limit/Cutoff are editable text inputs on each card (typed on screen and
+   baked into the printed page); attempt results and signatures stay blank
+   for hand-writing. The structural controls (round format, extra rows,
+   card count) rebuild the sheet, so typed header values are captured
+   before a rebuild and restored into the matching card afterward. */
 (function () {
   'use strict';
 
@@ -36,15 +37,22 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  // A labeled blank: an uppercase caption followed by an underline to write on.
-  function line(caption, opts) {
+  // A labeled, editable field: an uppercase caption plus a text input styled
+  // as an underline, so it can be typed into on screen and prints with
+  // whatever value (or blank, to hand-write) it holds.
+  function line(caption, field, opts) {
     var wrap = document.createElement('div');
     wrap.className = 'sc-line' + (opts && opts.fixed ? ' fixed' : '');
     var cap = document.createElement('span');
     cap.className = 'cap';
     cap.textContent = caption;
-    var fill = document.createElement('span');
+    var fill = document.createElement('input');
+    fill.type = 'text';
     fill.className = 'fill';
+    fill.autocomplete = 'off';
+    fill.spellcheck = false;
+    fill.dataset.field = field;
+    if (opts && opts.width) { fill.style.width = opts.width; }
     wrap.appendChild(cap);
     wrap.appendChild(fill);
     return wrap;
@@ -59,32 +67,30 @@
     head.className = 'sc-head';
     var comp = document.createElement('div');
     comp.className = 'sc-comp';
-    comp.appendChild(line('Competition'));
+    comp.appendChild(line('Competition', 'competition'));
     head.appendChild(comp);
     card.appendChild(head);
 
     // Event + round + group, all on one line.
     var eventRow = document.createElement('div');
     eventRow.className = 'sc-row';
-    eventRow.appendChild(line('Event'));
-    eventRow.appendChild(line('Round', { fixed: true }));
-    eventRow.appendChild(line('Group', { fixed: true }));
+    eventRow.appendChild(line('Event', 'event'));
+    eventRow.appendChild(line('Round', 'round', { fixed: true }));
+    eventRow.appendChild(line('Group', 'group', { fixed: true }));
     card.appendChild(eventRow);
 
     // Name + ID.
     var idRow = document.createElement('div');
     idRow.className = 'sc-row';
-    idRow.appendChild(line('Name'));
-    var id = line('ID', { fixed: true });
-    id.querySelector('.fill').style.width = '70px';
-    idRow.appendChild(id);
+    idRow.appendChild(line('Name', 'name'));
+    idRow.appendChild(line('ID', 'id', { fixed: true, width: '92px' }));
     card.appendChild(idRow);
 
     // Time limit + cutoff guidance.
     var guide = document.createElement('div');
     guide.className = 'sc-guidance';
-    guide.appendChild(line('Time limit'));
-    guide.appendChild(line('Cutoff'));
+    guide.appendChild(line('Time limit', 'time-limit'));
+    guide.appendChild(line('Cutoff', 'cutoff'));
     card.appendChild(guide);
 
     // Attempts table.
@@ -156,10 +162,40 @@
     return tr;
   }
 
+  // Structural changes (format/extra rows/count) rebuild every card from
+  // scratch. Capture what's currently typed into each card's header fields
+  // first, then restore it into the same card index afterward, so editing a
+  // control doesn't erase names/IDs/etc already filled in.
+  function collectValues() {
+    var cards = els.sheet.querySelectorAll('.scorecard');
+    var values = [];
+    for (var i = 0; i < cards.length; i++) {
+      var fields = {};
+      var inputs = cards[i].querySelectorAll('input[data-field]');
+      for (var j = 0; j < inputs.length; j++) {
+        fields[inputs[j].dataset.field] = inputs[j].value;
+      }
+      values.push(fields);
+    }
+    return values;
+  }
+
+  function restoreValues(values) {
+    var cards = els.sheet.querySelectorAll('.scorecard');
+    for (var i = 0; i < cards.length && i < values.length; i++) {
+      var inputs = cards[i].querySelectorAll('input[data-field]');
+      for (var j = 0; j < inputs.length; j++) {
+        var v = values[i][inputs[j].dataset.field];
+        if (v) { inputs[j].value = v; }
+      }
+    }
+  }
+
   function render() {
     var format = FORMATS[els.format.value] || FORMATS.ao5;
     var extraRows = clampInt(els.extra.value, 0, 6, 2);
     var count = clampInt(els.count.value, 1, 200, 4);
+    var saved = collectValues();
 
     var frag = document.createDocumentFragment();
     for (var i = 0; i < count; i++) {
@@ -167,6 +203,7 @@
     }
     els.sheet.innerHTML = '';
     els.sheet.appendChild(frag);
+    restoreValues(saved);
   }
 
   els.format.addEventListener('change', render);
