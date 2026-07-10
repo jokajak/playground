@@ -1,9 +1,9 @@
 /* WCA Scorecard Generator — render a stack of blank, official-style WCA
    scorecards for printing. There is no competition/competitor data to enter:
    every text field is a blank line the user fills in by hand. The only inputs
-   are structural — whether the round has a cutoff (still 5 attempt rows, but
-   marked after attempt 2), how many blank "extra" rows to add, and how many
-   cards to print. */
+   are structural — the round format (which sets the attempt count, and for
+   the cutoff variant, marks the boundary after attempt 2), how many blank
+   "extra" rows to add, and how many cards to print. */
 (function () {
   'use strict';
 
@@ -15,11 +15,20 @@
     sheet:  document.getElementById('sheet')
   };
 
-  // Both formats are Average of 5 (5 attempts). The "cutoff" variant is not a
-  // separate attempt count — WCA cutoffs give everyone attempts 1-2, and only
-  // competitors who beat the cutoff in one of those earn attempts 3-5. So the
-  // card always shows 5 rows; cutoff just marks the boundary after row 2.
-  var CUTOFF_AFTER = { ao5: 0, 'ao5-cutoff': 2 };
+  // WCA round formats (regulation 9b): Bo1/Bo2/Bo3 (best single of N),
+  // Mo3 (mean of 3, same 3-row layout as Bo3), and Ao5 (average of 5).
+  // A cutoff is not its own format — it's a modifier on Ao5: everyone gets
+  // attempts 1-2, and only continues to attempts 3-5 by beating the cutoff
+  // in one of those, so that variant still renders all 5 rows plus a marked
+  // boundary after attempt 2.
+  var FORMATS = {
+    bo1:          { attempts: 1, cutoffAfter: 0 },
+    bo2:          { attempts: 2, cutoffAfter: 0 },
+    bo3:          { attempts: 3, cutoffAfter: 0 },
+    mo3:          { attempts: 3, cutoffAfter: 0 },
+    ao5:          { attempts: 5, cutoffAfter: 0 },
+    'ao5-cutoff': { attempts: 5, cutoffAfter: 2 }
+  };
 
   function clampInt(value, min, max, fallback) {
     var n = parseInt(value, 10);
@@ -41,7 +50,7 @@
     return wrap;
   }
 
-  function buildCard(cutoffAfter, extraRows) {
+  function buildCard(attempts, cutoffAfter, extraRows) {
     var card = document.createElement('div');
     card.className = 'scorecard';
 
@@ -79,11 +88,11 @@
     card.appendChild(guide);
 
     // Attempts table.
-    card.appendChild(buildTable(cutoffAfter, extraRows));
+    card.appendChild(buildTable(attempts, cutoffAfter, extraRows));
     return card;
   }
 
-  function buildTable(cutoffAfter, extraRows) {
+  function buildTable(attempts, cutoffAfter, extraRows) {
     var table = document.createElement('table');
     table.className = 'attempts';
 
@@ -106,7 +115,7 @@
     table.appendChild(thead);
 
     var tbody = document.createElement('tbody');
-    for (var i = 1; i <= 5; i++) {
+    for (var i = 1; i <= attempts; i++) {
       if (cutoffAfter > 0 && i === cutoffAfter + 1) {
         var cutoffHead = document.createElement('tr');
         cutoffHead.className = 'cutoff-head';
@@ -148,13 +157,13 @@
   }
 
   function render() {
-    var cutoffAfter = CUTOFF_AFTER[els.format.value] || 0;
+    var format = FORMATS[els.format.value] || FORMATS.ao5;
     var extraRows = clampInt(els.extra.value, 0, 6, 2);
     var count = clampInt(els.count.value, 1, 200, 4);
 
     var frag = document.createDocumentFragment();
     for (var i = 0; i < count; i++) {
-      frag.appendChild(buildCard(cutoffAfter, extraRows));
+      frag.appendChild(buildCard(format.attempts, format.cutoffAfter, extraRows));
     }
     els.sheet.innerHTML = '';
     els.sheet.appendChild(frag);

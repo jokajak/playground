@@ -239,7 +239,11 @@
       <div class="field">
         <label for="format">Format</label>
         <select id="format">
-          <option value="ao5">Average of 5</option>
+          <option value="bo1">Best of 1</option>
+          <option value="bo2">Best of 2</option>
+          <option value="bo3">Best of 3</option>
+          <option value="mo3">Mean of 3</option>
+          <option value="ao5" selected>Average of 5</option>
           <option value="ao5-cutoff">Average of 5 (cutoff after 2)</option>
         </select>
       </div>
@@ -256,11 +260,13 @@
     </div>
 
     <p class="hint">
-      Every text field is a blank line to write on. Both formats give 5 attempt
-      rows; the <strong>cutoff</strong> variant marks a line after attempt 2 —
-      a competitor must beat the cutoff in one of the first 2 attempts to earn
-      attempts 3&ndash;5. Extra rows are blank spares for replacement attempts.
-      Cards print four to a page.
+      Every text field is a blank line to write on. Formats set the attempt
+      count (Bo1&nbsp;=&nbsp;1, Bo2&nbsp;=&nbsp;2, Bo3/Mo3&nbsp;=&nbsp;3,
+      Ao5&nbsp;=&nbsp;5). The <strong>cutoff</strong> variant is still 5 rows,
+      with a marked line after attempt 2 &mdash; a competitor must beat the
+      cutoff in one of the first 2 attempts to earn attempts 3&ndash;5. Extra
+      rows are blank spares for replacement attempts. Cards print four to a
+      page.
     </p>
   </div>
 
