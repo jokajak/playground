@@ -1,10 +1,10 @@
 # QR Code Maker
 
 Generate QR codes in the browser, and optionally embed one into a picture of
-your choosing — either blended into the artwork (the code's dark and light
-modules become subtle luminance shifts of the image itself) or stamped on as a
-solid tile. No server, no build step, no accounts — nothing you type or upload
-ever leaves your machine.
+your choosing — either merged into the image itself (the picture's own pixels
+are reshaped to carry the code's dark and light modules; nothing is drawn on
+top) or stamped on as a solid tile. No server, no build step, no accounts —
+nothing you type or upload ever leaves your machine.
 
 ## Use it
 
@@ -32,11 +32,15 @@ python3 -m http.server 8000
 
 1. Click **Choose image…** (or drag a picture anywhere onto the page).
 2. Pick a **style**:
-   - **Blend** (default) weaves the code into the picture: the image stays
-     visible everywhere, data modules become gentle luminance nudges, and only
-     the corner finder marks read as soft, semi-transparent rounded squares.
-     The **Blend strength** slider trades subtlety (lower) against scanning
-     reliability (higher).
+   - **Merge** (default) reshapes the picture's own pixels to carry the code:
+     each pixel under a module is gently darkened or lightened toward the
+     level a scanner needs — strongest at the module's center, fading toward
+     the cell edge — and pixels the photo already agrees with are left
+     untouched, so texture, color, and detail survive everywhere. Nothing is
+     pasted on top except the corner finder marks every scannable QR must
+     show (drawn semi-transparent, the image shows through). The **Merge
+     strength** slider trades subtlety (lower) against scanning reliability
+     (higher).
    - **Stamp** places the code as a solid tile — less pretty, most scannable.
 3. **Drag** the code on the preview to reposition it, use the arrow buttons
    for corner/center presets, and the **QR size** slider to resize it.
@@ -47,14 +51,14 @@ python3 -m http.server 8000
    resolution (very large photos are capped at 4096 px on the long side).
 
 When you load an image, error correction is automatically raised to **H**
-(30% recoverable) — blended codes rely on that headroom.
+(30% recoverable) — merged codes rely on that headroom.
 
 ### Scannability tips
 
 - Keep the code at least ~25% of the image's shorter side, and don't shrink
   the final image so much that individual modules blur together.
-- Blended codes read best over calm, mid-tone image areas; on very dark or
-  very busy regions, raise the blend strength until the badge turns green.
+- Merged codes read best over calm, mid-tone image areas; on very dark or
+  very busy regions, raise the merge strength until the badge turns green.
 - The light "quiet zone" border around the code is drawn automatically —
   don't crop it off.
 - The badge is a good proxy, but test with a phone camera before printing —
@@ -65,7 +69,7 @@ When you load an image, error correction is automatically raised to **H**
 QR encoding by [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
 by Kazuhiko Arase (MIT), vendored in `src/vendor/qrcode.js`. Scannability
 checking by [jsQR](https://github.com/cozmo/jsQR) (Apache-2.0), vendored in
-`src/vendor/jsqr.js`. The blended style is inspired by
+`src/vendor/jsqr.js`. The merged style is inspired by
 [infuse-qr.com](https://infuse-qr.com).
 "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
 

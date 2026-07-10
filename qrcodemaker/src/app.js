@@ -1,5 +1,5 @@
 /* QR Code Maker — generate a QR code and optionally embed it into an image,
-   either stamped as an opaque tile or blended into the picture.
+   either merged into the picture's own pixels or stamped as an opaque tile.
    Uses the vendored qrcode-generator library (global `qrcode`) and the
    vendored jsQR decoder (global `jsQR`) for the live scannability check. */
 (function () {
@@ -18,10 +18,10 @@
     removeImage:     document.getElementById('remove-image'),
     imageHint:       document.getElementById('image-hint'),
     modeControl:     document.getElementById('mode-control'),
-    modeBlend:       document.getElementById('mode-blend'),
+    modeMerge:       document.getElementById('mode-merge'),
     modeStamp:       document.getElementById('mode-stamp'),
     strengthControl: document.getElementById('strength-control'),
-    strength:        document.getElementById('blend-strength'),
+    strength:        document.getElementById('merge-strength'),
     strengthValue:   document.getElementById('strength-value'),
     scaleControl:    document.getElementById('scale-control'),
     scale:           document.getElementById('scale'),
@@ -39,18 +39,24 @@
   var MAX_IMAGE_DIM = 4096;   // cap huge photos so canvas work stays snappy
   var EDGE_MARGIN = 0.02;     // preset margin, as a fraction of the shorter side
 
-  /* Blend-mode tuning. The strength slider (10–100) interpolates the luminance
+  /* Merge-mode tuning. The strength slider (10–100) interpolates the luminance
      targets that module centers are pushed to; the endpoints below are
      calibrated so the default decodes with jsQR on busy test images. */
-  var DOT_SUBTLE = 0.68, DOT_STRONG = 0.92; // dot coverage grows with strength
-  var WASH_SUBTLE = 0.12, WASH_STRONG = 0.45; // full-cell wash alpha (damps busy
-                                              // image texture between the dots)
   var L_DARK_SUBTLE = 96,  L_DARK_STRONG = 32;   // dark-module target luma range
   var L_LIGHT_SUBTLE = 168, L_LIGHT_STRONG = 224; // light-module target luma range
   var L_DARK_FN_CAP = 56;       // function modules never render weaker than this…
   var L_LIGHT_FN_FLOOR = 200;   // …regardless of the strength slider
+  var W_MIN_SUBTLE = 0.16, W_MIN_STRONG = 0.42; // cell-edge push floor vs strength
+  var CORE_D2 = 0.35; // full-push core radius² — a solid heart in every module
+  var FALL_LO = 0.35, FALL_HI = 0.55; // radial falloff steepness (jittered per module)
+  /* Interior texture allowance: no pixel may end up further than this from
+     its module's luma target. Block-threshold binarizers (jsQR, ZXing on
+     phones) sample in ~8 px blocks and expect module interiors to be flat,
+     so the allowance shrinks once modules render larger than 8 px. */
+  var BAND_SUBTLE = 85, BAND_STRONG = 40; // allowance at ≤8 px/module, vs strength
+  var QUIET_W = 0.8;            // flat lightening weight across the quiet zone
 
-  // Module classes for blended rendering.
+  // Module classes for merged rendering.
   var M_DATA = 0, M_FINDER = 1, M_ALIGN = 2, M_FUNC = 3;
 
   /* Alignment-pattern center coordinates per version (ISO/IEC 18004; the
@@ -73,8 +79,8 @@
   var state = {
     image: null,          // HTMLImageElement, or null for standalone QR
     imageName: '',
-    mode: 'blend',        // 'blend' | 'stamp' — how the code sits on the image
-    strength: 55,         // blend strength, 10–100
+    mode: 'merge',        // 'merge' | 'stamp' — how the code and image combine
+    strength: 55,         // merge strength, 10–100
     scalePct: 25,         // QR footprint as % of the image's shorter side
     pos: { x: 0.5, y: 0.5 }, // normalized center of the QR on the image
   };
@@ -119,7 +125,7 @@
     return c;
   }
 
-  // ── Module classification (for blended rendering) ───────────────────────
+  // ── Module classification (for merged rendering) ────────────────────────
 
   var classesCache = { count: 0, classes: null };
 
@@ -201,47 +207,14 @@
 
   function luma(r, g, b) { return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
 
-  /* Push a sampled color's luminance to at least/at most targetY, preserving
-     hue: darkening multiplies channels; lightening lerps toward white. Colors
-     that already satisfy the target come back unchanged — that's what makes
-     modules "the image already agrees with" invisible. */
-  function pushLuminance(r, g, b, targetY, dark) {
-    var y = luma(r, g, b);
-    if (dark) {
-      if (y <= targetY) return [r, g, b];
-      var k = targetY / (y || 1);
-      return [r * k, g * k, b * k];
-    }
-    if (y >= targetY) return [r, g, b];
-    var t = (targetY - y) / (255 - y || 1);
-    return [lerp(r, 255, t), lerp(g, 255, t), lerp(b, 255, t)];
+  // Cheap deterministic per-module jitter in [0, 1), for organic patch sizes.
+  function hash2(r, c) {
+    var h = ((r * 73856093) ^ (c * 19349663)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
 
-  function rgb(c) {
-    return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')';
-  }
-
-  // ── Underlying-image sampling ────────────────────────────────────────────
-
-  var sampleMid = document.createElement('canvas');   // 4 px per cell
-  var sampleOut = document.createElement('canvas');   // 1 px per cell
-
-  /* Average color of the image under each grid cell (total×total cells
-     covering the code + quiet zone). Two-step downscale: a single huge-ratio
-     drawImage undersamples in Chromium. Must be called after the photo is
-     drawn and before any QR marks. */
-  function sampleModules(x, y, sizePx, total) {
-    var mid = total * 4;
-    if (sampleMid.width !== mid) sampleMid.width = sampleMid.height = mid;
-    if (sampleOut.width !== total) sampleOut.width = sampleOut.height = total;
-    var mctx = sampleMid.getContext('2d');
-    var octx = sampleOut.getContext('2d', { willReadFrequently: true });
-    mctx.drawImage(els.canvas, x, y, sizePx, sizePx, 0, 0, mid, mid);
-    octx.drawImage(sampleMid, 0, 0, mid, mid, 0, 0, total, total);
-    return octx.getImageData(0, 0, total, total).data;
-  }
-
-  // ── Blended renderer ─────────────────────────────────────────────────────
+  // ── Merged renderer ──────────────────────────────────────────────────────
 
   // Appends a rounded-rect subpath (no beginPath), so callers can combine
   // subpaths for even-odd ring fills without depending on ctx.roundRect.
@@ -291,67 +264,105 @@
     ctx.fill();
   }
 
-  function drawBlendedQr(qr, x, y, px, total) {
+  /* Merge the code into the photo's own pixels. One pass over the QR's
+     rectangle pushes each pixel's luminance toward its module's target,
+     preserving hue (darkening multiplies the channels, lightening lerps
+     toward white). Pixels that already satisfy their target are untouched —
+     modules the photo already agrees with are invisible. The push weight is
+     1 at the module center (where decoders sample) and falls off radially to
+     a strength-dependent floor at the cell edge, jittered per module, so
+     modules read as organic patches of shading rather than a grid of dots. */
+  function drawMergedQr(qr, x, y, px, total) {
     var count = qr.getModuleCount();
     var classes = classifyModules(count);
-    var samples = sampleModules(x, y, px * total, total);
     var s = state.strength / 100;
     var lDark = lerp(L_DARK_SUBTLE, L_DARK_STRONG, s);
     var lLight = lerp(L_LIGHT_SUBTLE, L_LIGHT_STRONG, s);
     var lDarkFn = Math.min(lDark, L_DARK_FN_CAP);
     var lLightFn = Math.max(lLight, L_LIGHT_FN_FLOOR);
-    var r, c, i, sr, sg, sb, color;
+    var wMin = lerp(W_MIN_SUBTLE, W_MIN_STRONG, s);
+    var band = lerp(BAND_SUBTLE, BAND_STRONG, s);
+    var tex = px > 8 ? band * 8 / px : band; // flatter interiors as modules grow
 
-    // Quiet zone: a light wash, strong beside the code and fading outward.
-    for (r = 0; r < total; r++) {
-      for (c = 0; c < total; c++) {
-        var d = Math.max(
-          QUIET_MODULES - r, r - (total - QUIET_MODULES - 1),
-          QUIET_MODULES - c, c - (total - QUIET_MODULES - 1));
-        if (d <= 0) continue; // inside the code area
-        i = (r * total + c) * 4;
-        sr = samples[i]; sg = samples[i + 1]; sb = samples[i + 2];
-        color = pushLuminance(sr, sg, sb, lLight, false);
-        if (d > 2) { // outer rings: half push for a soft fade
-          color = [(color[0] + sr) / 2, (color[1] + sg) / 2, (color[2] + sb) / 2];
+    /* Per-cell plan across the total×total grid (code + quiet zone).
+       Finder/alignment cells are skipped — the photo shows through there and
+       the semi-transparent vector marks are drawn on top afterwards. */
+    var cells = total * total;
+    var target = new Float32Array(cells);
+    var dark = new Uint8Array(cells);
+    var wmin = new Float32Array(cells);
+    var wcap = new Float32Array(cells);
+    var fall = new Float32Array(cells);
+    var skip = new Uint8Array(cells);
+    for (var r = 0; r < total; r++) {
+      for (var c = 0; c < total; c++) {
+        var i = r * total + c;
+        var mr = r - QUIET_MODULES, mc = c - QUIET_MODULES;
+        if (mr < 0 || mc < 0 || mr >= count || mc >= count) {
+          // Quiet zone: a flat, soft lightening of the photo itself.
+          target[i] = lLight; wmin[i] = QUIET_W; wcap[i] = QUIET_W;
+          continue;
         }
-        ctx.fillStyle = rgb(color);
-        ctx.fillRect(x + c * px, y + r * px, px + 0.5, px + 0.5);
-      }
-    }
-
-    // Data + auxiliary function modules: a partial-alpha wash over the whole
-    // cell (quiets busy image texture between dots) plus a solid centered dot.
-    var dataFrac = lerp(DOT_SUBTLE, DOT_STRONG, s);
-    var fnFrac = Math.min(0.95, dataFrac + 0.08);
-    var wash = lerp(WASH_SUBTLE, WASH_STRONG, s).toFixed(3);
-    for (r = 0; r < count; r++) {
-      for (c = 0; c < count; c++) {
-        var cls = classes[r * count + c];
-        if (cls === M_FINDER || cls === M_ALIGN) continue; // vector marks below
-        var dark = qr.isDark(r, c);
+        var cls = classes[mr * count + mc];
+        if (cls === M_FINDER || cls === M_ALIGN) { skip[i] = 1; continue; }
         var fn = cls === M_FUNC;
-        var target = fn ? (dark ? lDarkFn : lLightFn) : (dark ? lDark : lLight);
-        i = ((r + QUIET_MODULES) * total + (c + QUIET_MODULES)) * 4;
-        color = pushLuminance(samples[i], samples[i + 1], samples[i + 2], target, dark);
-        var cr = Math.round(color[0]), cg = Math.round(color[1]), cb = Math.round(color[2]);
-        var cellX = x + (c + QUIET_MODULES) * px;
-        var cellY = y + (r + QUIET_MODULES) * px;
-        ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + wash + ')';
-        ctx.fillRect(cellX, cellY, px + 0.5, px + 0.5);
-        var dot = Math.max(2, Math.round(px * (fn ? fnFrac : dataFrac)));
-        var off = (px - dot) / 2;
-        ctx.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
-        if (dot >= 5) {
-          roundRectPath(cellX + off, cellY + off, dot, dot, 0.3 * dot);
-          ctx.fill();
+        dark[i] = qr.isDark(mr, mc) ? 1 : 0;
+        target[i] = fn ? (dark[i] ? lDarkFn : lLightFn) : (dark[i] ? lDark : lLight);
+        wmin[i] = fn ? Math.min(0.9, wMin + 0.18) : wMin; // timing/format need more
+        wcap[i] = 1;
+        fall[i] = lerp(FALL_LO, FALL_HI, hash2(mr, mc));
+      }
+    }
+
+    var size = px * total;
+    var imgData = ctx.getImageData(x, y, size, size);
+    var d = imgData.data;
+    for (var Y = 0; Y < size; Y++) {
+      var row = (Y / px) | 0;
+      if (row >= total) row = total - 1;
+      var v = ((Y - row * px) + 0.5) / px * 2 - 1; // -1..1 within the cell
+      var rowBase = row * total;
+      for (var X = 0; X < size; X++) {
+        var col = (X / px) | 0;
+        if (col >= total) col = total - 1;
+        var ci = rowBase + col;
+        if (skip[ci]) { X = (col + 1) * px - 1; continue; }
+        var p = (Y * size + X) * 4;
+        var pr = d[p], pg = d[p + 1], pb = d[p + 2];
+        var yl = luma(pr, pg, pb);
+        var t = target[ci];
+        var eff;
+        if (dark[ci] ? yl <= t : yl >= t) {
+          eff = yl; // photo already agrees — touched only if beyond the band
         } else {
-          ctx.fillRect(cellX + off, cellY + off, dot, dot);
+          var u = ((X - col * px) + 0.5) / px * 2 - 1;
+          var d2 = u * u + v * v - CORE_D2;
+          var w = d2 <= 0 ? wcap[ci]
+                : Math.min(wcap[ci], Math.max(wmin[ci], 1 - fall[ci] * d2));
+          eff = yl + (t - yl) * w;
+        }
+        // Two-sided clamp: outliers in either direction skew block thresholds.
+        if (eff > t + tex) eff = t + tex;
+        else if (eff < t - tex) eff = t - tex;
+        if (eff === yl) continue;
+        if (eff < yl) {
+          var k = eff / (yl || 1);
+          d[p] = pr * k; d[p + 1] = pg * k; d[p + 2] = pb * k;
+        } else {
+          var tt = (eff - yl) / (255 - yl || 1);
+          d[p]     = pr + (255 - pr) * tt;
+          d[p + 1] = pg + (255 - pg) * tt;
+          d[p + 2] = pb + (255 - pb) * tt;
         }
       }
     }
+    ctx.putImageData(imgData, x, y);
 
     // Finder and alignment marks.
+    drawAllLocatorMarks(x, y, px, count);
+  }
+
+  function drawAllLocatorMarks(x, y, px, count) {
     drawLocatorMark(x, y, px, 0, 0, 7);
     drawLocatorMark(x, y, px, 0, count - 7, 7);
     drawLocatorMark(x, y, px, count - 7, 0, 7);
@@ -449,6 +460,8 @@
     var count = qr.getModuleCount();
     var total = count + QUIET_MODULES * 2;
     var px = Math.max(1, Math.round(target / total));
+    // At 100% scale, rounding up must not push the code past the image edge.
+    if (px * total > Math.min(w, h)) px = Math.max(1, Math.floor(target / total));
     var qw = px * total;
 
     // Clamp the center so the code stays fully inside the picture.
@@ -461,8 +474,8 @@
     var x = Math.round(cx - half);
     var y = Math.round(cy - half);
 
-    if (state.mode === 'blend') {
-      drawBlendedQr(qr, x, y, px, total);
+    if (state.mode === 'merge') {
+      drawMergedQr(qr, x, y, px, total);
     } else {
       var c = qrToCanvas(qr, target);
       ctx.imageSmoothingEnabled = false;
@@ -472,7 +485,7 @@
 
     qrRect = { x: x, y: y, w: qw, h: qw };
     els.meta.textContent = w + '×' + h + ' px · QR ' + qw + '×' + qw + ' px · ' +
-      (state.mode === 'blend' ? 'blended (strength ' + state.strength + ')' : 'stamped') +
+      (state.mode === 'merge' ? 'merged (strength ' + state.strength + ')' : 'stamped') +
       ' — drag the code to reposition it';
   }
 
@@ -491,7 +504,9 @@
   var scanCanvas = document.createElement('canvas');
   // Decode is attempted at several sizes, the way a phone camera effectively
   // retries across frames (jsQR's fixed-size binarizer blocks can alias
-  // against particular module sizes at any single scale). Requiring two
+  // against particular module sizes at any single scale), and — when the
+  // code doesn't already fill the picture — also on a frame cropped to the
+  // code region, the view scanners steer users toward. Requiring two
   // successes separates robust output from a single-scale fluke.
   var SCAN_DIMS = [300, 450, 550, 700, 1000];
   var SCAN_MIN_HITS = 2;
@@ -509,16 +524,31 @@
     scanTimer = setTimeout(function () {
       var w = els.canvas.width, h = els.canvas.height;
       var sctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      var views = [{ x: 0, y: 0, w: w, h: h }];
+      if (qrRect && qrRect.w < 0.9 * w) {
+        var m = Math.round(qrRect.w * 0.05);
+        var vx = Math.max(0, qrRect.x - m), vy = Math.max(0, qrRect.y - m);
+        views.push({
+          x: vx, y: vy,
+          w: Math.min(w - vx, qrRect.w + 2 * m),
+          h: Math.min(h - vy, qrRect.h + 2 * m),
+        });
+      }
       var hits = 0;
-      for (var d = 0; d < SCAN_DIMS.length && hits < SCAN_MIN_HITS; d++) {
-        var k = Math.min(1, SCAN_DIMS[d] / Math.max(w, h));
-        var sw = Math.max(1, Math.round(w * k)), sh = Math.max(1, Math.round(h * k));
-        scanCanvas.width = sw; scanCanvas.height = sh;
-        sctx.drawImage(els.canvas, 0, 0, sw, sh);
-        var data = sctx.getImageData(0, 0, sw, sh);
-        var hit = jsQR(data.data, sw, sh);
-        if (hit && hit.data === expected) hits++;
-        if (k === 1) break; // larger dims would just repeat the same pixels
+      outer:
+      for (var vi = 0; vi < views.length; vi++) {
+        var vw = views[vi];
+        for (var d = 0; d < SCAN_DIMS.length; d++) {
+          var k = Math.min(1, SCAN_DIMS[d] / Math.max(vw.w, vw.h));
+          var sw = Math.max(1, Math.round(vw.w * k)), sh = Math.max(1, Math.round(vw.h * k));
+          scanCanvas.width = sw; scanCanvas.height = sh;
+          sctx.drawImage(els.canvas, vw.x, vw.y, vw.w, vw.h, 0, 0, sw, sh);
+          var data = sctx.getImageData(0, 0, sw, sh);
+          var hit = jsQR(data.data, sw, sh);
+          if (hit && hit.data === expected) hits++;
+          if (hits >= SCAN_MIN_HITS) break outer;
+          if (k === 1) break; // larger dims would just repeat the same pixels
+        }
       }
       var ok = hits >= SCAN_MIN_HITS;
       els.scanBadge.className = ok ? 'ok' : 'warn';
@@ -561,22 +591,22 @@
     state.imageName = '';
     els.imageInput.value = '';
     els.ecHint.hidden = true;
-    els.imageHint.textContent = 'Pick a photo or graphic and the QR code is woven into it. Drag the code on the preview to reposition it.';
+    els.imageHint.textContent = 'Pick a photo or graphic and the QR code is merged into it. Drag the code on the preview to reposition it.';
     syncControlVisibility();
     render();
   }
 
   function syncControlVisibility() {
     var hasImage = !!state.image;
-    var blending = hasImage && state.mode === 'blend';
+    var merging = hasImage && state.mode === 'merge';
     els.removeImage.hidden = !hasImage;
     els.modeControl.hidden = !hasImage;
-    els.strengthControl.hidden = !blending;
+    els.strengthControl.hidden = !merging;
     els.scaleControl.hidden = !hasImage;
     els.posControl.hidden = !hasImage;
     els.exportControl.style.display = hasImage ? 'none' : '';
-    els.colorRow.hidden = blending; // blend takes its colors from the photo
-    els.modeBlend.classList.toggle('active', state.mode === 'blend');
+    els.colorRow.hidden = merging; // merge takes its colors from the photo
+    els.modeMerge.classList.toggle('active', state.mode === 'merge');
     els.modeStamp.classList.toggle('active', state.mode === 'stamp');
     if (!hasImage) els.scanBadge.hidden = true;
   }
@@ -656,7 +686,7 @@
     syncControlVisibility();
     render();
   }
-  els.modeBlend.addEventListener('click', function () { setMode('blend'); });
+  els.modeMerge.addEventListener('click', function () { setMode('merge'); });
   els.modeStamp.addEventListener('click', function () { setMode('stamp'); });
 
   els.strength.addEventListener('input', function () {

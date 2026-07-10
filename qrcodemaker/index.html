@@ -253,7 +253,7 @@
 <body>
   <header>
     <h1>QR Code Maker</h1>
-    <p>Generate a QR code, optionally stamped onto a picture. Everything runs in your browser — nothing is uploaded.</p>
+    <p>Generate a QR code, optionally merged into a picture. Everything runs in your browser — nothing is uploaded.</p>
   </header>
 
   <main>
@@ -304,25 +304,25 @@
           <button type="button" id="choose-image">Choose image…</button>
           <button type="button" id="remove-image" hidden>Remove</button>
         </div>
-        <p class="hint" id="image-hint">Pick a photo or graphic and the QR code is woven into it. Drag the code on the preview to reposition it.</p>
+        <p class="hint" id="image-hint">Pick a photo or graphic and the QR code is merged into it. Drag the code on the preview to reposition it.</p>
 
         <div class="control" id="mode-control" hidden>
           <label>Style</label>
           <div class="seg">
-            <button type="button" id="mode-blend" class="active">Blend</button>
+            <button type="button" id="mode-merge" class="active">Merge</button>
             <button type="button" id="mode-stamp">Stamp</button>
           </div>
-          <p class="hint">Blend weaves the code into the picture — lower strength looks better, higher strength scans better. Stamp is a solid tile: less pretty, most scannable.</p>
+          <p class="hint">Merge reshapes the picture's own pixels to carry the code — nothing is pasted on top, only the corner marks every scanner needs. Lower strength is subtler, higher scans better. Stamp is a solid tile: less pretty, most scannable.</p>
         </div>
 
         <div class="control" id="strength-control" hidden>
-          <label for="blend-strength">Blend strength <span class="range-value" id="strength-value"></span></label>
-          <input type="range" id="blend-strength" min="10" max="100" value="55" step="1">
+          <label for="merge-strength">Merge strength <span class="range-value" id="strength-value"></span></label>
+          <input type="range" id="merge-strength" min="10" max="100" value="55" step="1">
         </div>
 
         <div class="control" id="scale-control" hidden>
           <label for="scale">QR size <span class="range-value" id="scale-value"></span></label>
-          <input type="range" id="scale" min="10" max="60" value="25" step="1">
+          <input type="range" id="scale" min="10" max="100" value="25" step="1">
         </div>
 
         <div class="control" id="position-control" hidden>
