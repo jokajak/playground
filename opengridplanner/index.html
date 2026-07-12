@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenGrid Planner</title>
+    <style>
+        /* General Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #161b22;
+            border-radius: 12px;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.4);
+            overflow: hidden;
+            border: 1px solid #30363d;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1f2937, #374151);
+            color: #e6edf3;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #f0f6fc;
+        }
+
+        .subtitle {
+            opacity: 0.8;
+            font-size: 1.1em;
+            color: #7d8590;
+        }
+
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 0;
+            min-height: 700px;
+        }
+
+        /* Controls Panel */
+        .controls {
+            padding: 20px;
+            background: #0d1117;
+            border-right: 1px solid #30363d;
+            overflow-y: auto;
+            max-width: 360px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #f0f6fc;
+            font-size: 0.9em;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input, select {
+            padding: 10px 12px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: #21262d;
+            color: #e6edf3;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e6edf3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            padding-right: 32px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+            background: #161b22;
+        }
+
+        .dimension-input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .unit-select {
+            min-width: 70px;
+            flex-shrink: 0;
+        }
+
+        .tile-size-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tile-size-inputs input {
+            width: 70px;
+            min-width: 70px;
+        }
+
+        .layout-mode {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .layout-option {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #21262d;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-size: 0.85em;
+        }
+
+        .layout-option.active {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            border-color: #7c3aed;
+            color: white;
+        }
+
+        .calculate-btn, .export-btn {
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        .calculate-btn {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            margin-bottom: 10px;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(124, 58, 237, 0.3);
+        }
+
+        .export-btn {
+            background: #374151;
+        }
+
+        .export-btn:hover {
+            background: #4b5563;
+        }
+
+        /* Unit Converter */
+        .converter-tool {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .converter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+
+        .converter-header h3 {
+            color: #7d8590;
+            margin: 0;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .converter-toggle {
+            color: #7d8590;
+            font-size: 0.7em;
+            transition: transform 0.2s ease;
+        }
+
+        .converter-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .converter-inputs {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #30363d;
+        }
+
+        .converter-inputs.expanded {
+            display: flex;
+        }
+
+        .converter-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+        }
+
+        .converter-row input {
+            flex: 1;
+            padding: 6px 8px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #e6edf3;
+            font-size: 0.8em;
+            min-width: 0;
+        }
+
+        .converter-row span {
+            color: #7d8590;
+            white-space: nowrap;
+            font-size: 0.75em;
+        }
+
+        .fraction-input {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #e6edf3;
+            font-size: 0.8em;
+            padding: 6px 8px;
+        }
+
+        .fraction-input::placeholder {
+            color: #7d8590;
+            font-size: 0.75em;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            padding: 30px;
+            background: #161b22;
+        }
+
+        .results-header {
+            margin-bottom: 25px;
+        }
+
+        .results-header h2 {
+            color: #f0f6fc;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .grid-preview {
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            min-height: 300px;
+            background: #0d1117;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* Highlighting Styles */
+        .grid-preview.highlighting .tile:not(.highlight) {
+            opacity: 0.2;
+        }
+        .tile {
+            transition: opacity 0.2s ease;
+        }
+        .tile.highlight {
+            opacity: 1;
+            box-shadow: 0 0 0 3px #fbbf24;
+            z-index: 10;
+        }
+        .result-item.highlight {
+            background: #30363d;
+            transform: translateX(3px);
+        }
+
+        .results-list {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #30363d;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: #21262d;
+            border-radius: 6px;
+            border-left: 3px solid; /* Color will be set by JS */
+            transition: all 0.2s ease;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #e6edf3;
+        }
+
+        .item-quantity {
+            /* Background color will be set by JS */
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            min-width: 35px;
+            text-align: center;
+            font-size: 0.85em;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #7d8590;
+            font-style: italic;
+            padding: 40px;
+        }
+
+        .info-note {
+            background: #0c2d48;
+            border: 1px solid #1f6feb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 0.85em;
+            color: #79c0ff;
+            line-height: 1.4;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            color: white;
+            padding: 18px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+
+        .printer-info {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #7d8590;
+        }
+
+        /* Optimal Layout Options */
+        .optimal-results {
+            background: #0c2d48;
+            border: 1px solid #1f6feb;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .optimal-results h3 {
+            color: #79c0ff;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .optimal-option {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .optimal-option:hover {
+            background: #30363d;
+            border-color: #7c3aed;
+        }
+
+        .optimal-option.selected {
+            border-color: #7c3aed;
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .option-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .option-size {
+            font-weight: 600;
+            color: #e6edf3;
+        }
+
+        .option-stats {
+            font-size: 0.8em;
+            color: #7d8590;
+        }
+
+        /* Export Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #161b22;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.4);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #f0f6fc;
+            font-size: 1.5em;
+        }
+
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: #7d8590;
+            font-size: 1.8em;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        #exportText {
+            width: 100%;
+            height: 300px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 20px;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) { }
+
+        @media (max-width: 1200px) {
+            .main-content { grid-template-columns: 320px 1fr; }
+            .controls { padding: 15px; max-width: 320px; }
+        }
+
+        @media (max-width: 768px) {
+            .main-content { grid-template-columns: 1fr; }
+            .controls { border-right: none; border-bottom: 1px solid #30363d; max-width: none; padding: 20px; }
+            .header h1 { font-size: 2em; }
+            .summary-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>OpenGrid Planner</h1>
+            <p class="subtitle">Plan your OpenGrid layout with precision - Optimized for BambuLab printers</p>
+        </div>
+
+        <div class="main-content">
+            <div class="controls">
+                <!-- Unit Converter Tool -->
+                <div class="converter-tool">
+                    <div class="converter-header" onclick="toggleConverter()">
+                        <h3>Unit Converter</h3>
+                        <span class="converter-toggle">▼</span>
+                    </div>
+                    <div class="converter-inputs" id="converterInputs">
+                        <div class="converter-row">
+                            <input type="number" id="inchInput" placeholder="0" step="0.001">
+                            <span>inch =</span>
+                            <input type="number" id="mmOutput" placeholder="0" readonly>
+                            <span>mm</span>
+                        </div>
+                        <div class="converter-row">
+                            <input type="number" id="mmInput" placeholder="0" step="0.1">
+                            <span>mm =</span>
+                            <input type="number" id="inchOutput" placeholder="0" readonly>
+                            <span>inch</span>
+                        </div>
+                        <div class="converter-row">
+                            <input type="text" id="fractionInput" class="fraction-input" placeholder='e.g. 3 5/16"'>
+                            <span>=</span>
+                            <input type="number" id="decimalOutput" placeholder="0" readonly>
+                            <span>inch</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Printer Selection -->
+                <div class="control-group">
+                    <label>BambuLab Printer:</label>
+                    <select id="printerModel">
+                        <option value="custom">Custom / Other</option>
+                        <option value="a1mini">A1 Mini (180×180×180mm)</option>
+                        <option value="a1">A1 (256×256×256mm)</option>
+                        <option value="p1p">P1P (256×256×256mm)</option>
+                        <option value="p1s">P1S (256×256×256mm)</option>
+                        <option value="p2s">P2S (256×256×256mm)</option>
+                        <option value="x1c">X1 Carbon (256×256×256mm)</option>
+                    </select>
+                    <div class="printer-info" id="printerInfo">
+                        Select a printer to see bed size constraints and optimize tile layouts accordingly.
+                    </div>
+                </div>
+
+                <!-- Wall/Surface Size Input -->
+                <div class="control-group">
+                    <label>Surface or Wall Size:</label>
+                    <div class="input-row">
+                        <input type="number" id="wallWidth" class="dimension-input" placeholder="Width" min="1" step="0.1" value="300">
+                        <span>×</span>
+                        <input type="number" id="wallHeight" class="dimension-input" placeholder="Height" min="1" step="0.1" value="200">
+                        <select id="units" class="unit-select">
+                            <option value="mm">mm</option>
+                            <option value="inch">inch</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Layout Mode Selection -->
+                <div class="control-group">
+                    <label>Layout Mode:</label>
+                    <div class="layout-mode">
+                        <div class="layout-option active" onclick="setLayoutMode('optimal')" id="optimalMode">
+                            Auto Optimal
+                        </div>
+                        <div class="layout-option" onclick="setLayoutMode('manual')" id="manualMode">
+                            Manual Size
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Tile Size Input (hidden by default) -->
+                <div class="control-group" id="manualTileSize" style="display: none;">
+                    <label>Tile Size:</label>
+                    <div class="tile-size-inputs">
+                        <input type="number" id="tileWidth" placeholder="Width" min="1" value="6">
+                        <span>×</span>
+                        <input type="number" id="tileHeight" placeholder="Height" min="1" value="6">
+                        <span>grids</span>
+                    </div>
+                </div>
+
+                <!-- Tile Type Selection -->
+                <div class="control-group">
+                    <label>Tile Type:</label>
+                    <select id="tileType">
+                        <option value="regular">Regular</option>
+                        <option value="lite">Lite</option>
+                    </select>
+                </div>
+
+                <button class="calculate-btn" onclick="calculateTiles()">Calculate Layout</button>
+                <button class="export-btn" onclick="exportResults()">Export Results</button>
+
+                <!-- Informational Note -->
+                <div class="info-note">
+                    <strong>OpenGrid Specifications:</strong><br>
+                    • 28mm grid size (Gridfinity compatible)<br>
+                    • Regular tiles: ~1.5h print time each<br>
+                    • Lite tiles: ~0.8h print time each<br>
+                    • Uses Multiconnect connector system
+                </div>
+            </div>
+
+            <div class="results-panel">
+                <div class="results-header">
+                    <h2>Layout Results:</h2>
+                </div>
+
+                <!-- Optimal Tile Size Recommendations -->
+                <div class="optimal-results" id="optimalResults" style="display: none;">
+                    <h3>Recommended Tile Sizes:</h3>
+                    <div id="optimalOptions"></div>
+                </div>
+
+                <!-- Summary Statistics -->
+                <div class="summary-stats" id="summaryStats" style="display: none;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTiles">0</div>
+                        <div class="stat-label">Total Tiles</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="coverage">0%</div>
+                        <div class="stat-label">Coverage</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="printTime">0h</div>
+                        <div class="stat-label">Est. Print Time</div>
+                    </div>
+                </div>
+
+                <!-- Grid Preview Area -->
+                <div class="grid-preview" id="gridPreview">
+                    <div class="no-results">Click "Calculate Layout" to see your grid preview</div>
+                </div>
+
+                <!-- Results List (Bill of Materials) -->
+                <div class="results-list" id="resultsList">
+                    <div class="no-results">No calculations yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Exported Layout</h3>
+                <button class="modal-close-btn" onclick="closeExportModal()">&times;</button>
+            </div>
+            <textarea id="exportText" readonly></textarea>
+            <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES & CONSTANTS ---
+        const printers = {
+            a1mini: { name: "A1 Mini", bed: [180, 180, 180] },
+            a1: { name: "A1", bed: [256, 256, 256] },
+            p1p: { name: "P1P", bed: [256, 256, 256] },
+            p1s: { name: "P1S", bed: [256, 256, 256] },
+            p2s: { name: "P2S", bed: [256, 256, 256] },
+            x1c: { name: "X1 Carbon", bed: [256, 256, 256] },
+            custom: { name: "Custom", bed: [999, 999, 999] }
+        };
+
+        const tileColors = {
+            main: '#7c3aed',
+            edgeRight: '#10b981',
+            edgeBottom: '#f59e0b',
+            corner: '#ef4444',
+            connector: '#374151'
+        };
+
+        let currentLayoutMode = 'optimal';
+        let currentOptimalSizes = [];
+        let selectedOptimalIndex = 0;
+        let converterExpanded = false;
+        let lastCalculationResults = null; // Store last results for export
+
+        // --- UI & CONVERTER FUNCTIONS ---
+
+        function toggleConverter() {
+            converterExpanded = !converterExpanded;
+            document.getElementById('converterInputs').classList.toggle('expanded', converterExpanded);
+            document.querySelector('.converter-toggle').classList.toggle('expanded', converterExpanded);
+        }
+
+        function parseFraction(input) {
+            if (!input) return 0;
+            input = input.replace(/["']/g, '').trim();
+            const mixedMatch = input.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+            if (mixedMatch) return parseInt(mixedMatch[1]) + (parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]));
+            const fractionMatch = input.match(/^(\d+)\/(\d+)$/);
+            if (fractionMatch) return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
+            const decimal = parseFloat(input);
+            return isNaN(decimal) ? 0 : decimal;
+        }
+
+        function setLayoutMode(mode) {
+            currentLayoutMode = mode;
+            document.getElementById('optimalMode').classList.toggle('active', mode === 'optimal');
+            document.getElementById('manualMode').classList.toggle('active', mode === 'manual');
+            document.getElementById('manualTileSize').style.display = mode === 'manual' ? 'block' : 'none';
+            document.getElementById('optimalResults').style.display = mode === 'optimal' ? 'block' : 'none';
+
+            if (mode === 'optimal') calculateOptimalSizes();
+            else calculateTiles();
+        }
+
+        function updatePrinterInfo() {
+            const printer = document.getElementById('printerModel').value;
+            const info = document.getElementById('printerInfo');
+            if (printer === 'custom') {
+                info.textContent = 'No bed size constraints. All tile sizes available.';
+            } else {
+                const printerData = printers[printer];
+                const maxGrids = Math.floor((printerData.bed[0] - 10) / 28);
+                info.textContent = `Bed: ${printerData.bed[0]}×${printerData.bed[1]}mm. Max tile: ${maxGrids}×${maxGrids} grids per print.`;
+            }
+        }
+
+        function selectOptimalOption(index) {
+            selectedOptimalIndex = index;
+            displayOptimalOptions();
+            calculateTiles();
+        }
+
+        // --- CALCULATION LOGIC ---
+
+        function calculateOptimalSizes() {
+            const wallWidth = parseFloat(document.getElementById('wallWidth').value) || 0;
+            const wallHeight = parseFloat(document.getElementById('wallHeight').value) || 0;
+            const units = document.getElementById('units').value;
+            const printer = document.getElementById('printerModel').value;
+
+            if (wallWidth <= 0 || wallHeight <= 0) return;
+
+            const gridSize = 28;
+            let wallWidthMm = units === 'inch' ? wallWidth * 25.4 : wallWidth;
+            let wallHeightMm = units === 'inch' ? wallHeight * 25.4 : wallHeight;
+
+            const bedSizeMm = printers[printer].bed;
+            const maxTileWidthMm = bedSizeMm[0] - 10;
+            const maxTileHeightMm = bedSizeMm[1] - 10;
+
+            const maxGridsX = Math.floor(maxTileWidthMm / gridSize);
+            const maxGridsY = Math.floor(maxTileHeightMm / gridSize);
+
+            let optimalSizes = [];
+
+            for (let w = 2; w <= Math.min(12, maxGridsX); w++) {
+                for (let h = 2; h <= Math.min(12, maxGridsY); h++) {
+                    const tileWidthMm = w * gridSize;
+                    const tileHeightMm = h * gridSize;
+                    const tilesX = Math.floor(wallWidthMm / tileWidthMm);
+                    const tilesY = Math.floor(wallHeightMm / tileHeightMm);
+
+                    if (tilesX * tilesY > 0) {
+                        const remainingX = wallWidthMm - (tilesX * tileWidthMm);
+                        const remainingY = wallHeightMm - (tilesY * tileHeightMm);
+                        const edgeGridsX = Math.floor(remainingX / gridSize);
+                        const edgeGridsY = Math.floor(remainingY / gridSize);
+
+                        const mainArea = tilesX * tilesY * tileWidthMm * tileHeightMm;
+                        const edgeAreaX = edgeGridsX > 0 ? tilesY * (edgeGridsX * gridSize * tileHeightMm) : 0;
+                        const edgeAreaY = edgeGridsY > 0 ? tilesX * (tileWidthMm * edgeGridsY * gridSize) : 0;
+                        const cornerArea = (edgeGridsX > 0 && edgeGridsY > 0) ? (edgeGridsX * gridSize * edgeGridsY * gridSize) : 0;
+
+                        const totalCoveredArea = mainArea + edgeAreaX + edgeAreaY + cornerArea;
+                        const coverage = (totalCoveredArea / (wallWidthMm * wallHeightMm)) * 100;
+
+                        const totalTiles = (tilesX * tilesY) + (edgeGridsX > 0 ? tilesY : 0) + (edgeGridsY > 0 ? tilesX : 0) + ((edgeGridsX > 0 && edgeGridsY > 0) ? 1 : 0);
+                        const efficiency = coverage - (totalTiles / 10);
+
+                        optimalSizes.push({ width: w, height: h, totalTiles, coverage: coverage.toFixed(1), efficiency });
+                    }
+                }
+            }
+
+            optimalSizes.sort((a, b) => b.efficiency - a.efficiency);
+
+            const uniqueSizes = [];
+            const seenSizes = new Set();
+            for (const option of optimalSizes) {
+                const sizeKey = `${option.width}x${option.height}`;
+                if (!seenSizes.has(sizeKey) && uniqueSizes.length < 5) {
+                    uniqueSizes.push(option);
+                    seenSizes.add(sizeKey);
+                }
+            }
+
+            currentOptimalSizes = uniqueSizes;
+            selectedOptimalIndex = 0;
+
+            displayOptimalOptions();
+            calculateTiles();
+        }
+
+        function calculateTiles() {
+            const wallWidth = parseFloat(document.getElementById('wallWidth').value) || 0;
+            const wallHeight = parseFloat(document.getElementById('wallHeight').value) || 0;
+            const units = document.getElementById('units').value;
+            const tileType = document.getElementById('tileType').value;
+
+            if (wallWidth <= 0 || wallHeight <= 0) return;
+
+            let tileWidth, tileHeight;
+            if (currentLayoutMode === 'optimal' && currentOptimalSizes.length > 0) {
+                const optimal = currentOptimalSizes[selectedOptimalIndex];
+                tileWidth = optimal.width;
+                tileHeight = optimal.height;
+            } else {
+                tileWidth = parseInt(document.getElementById('tileWidth').value) || 6;
+                tileHeight = parseInt(document.getElementById('tileHeight').value) || 6;
+            }
+
+            const gridSize = 28;
+            let wallWidthMm = units === 'inch' ? wallWidth * 25.4 : wallWidth;
+            let wallHeightMm = units === 'inch' ? wallHeight * 25.4 : wallHeight;
+
+            const tileWidthMm = tileWidth * gridSize;
+            const tileHeightMm = tileHeight * gridSize;
+
+            const tilesX = Math.floor(wallWidthMm / tileWidthMm);
+            const tilesY = Math.floor(wallHeightMm / tileHeightMm);
+
+            const remainingX = wallWidthMm - (tilesX * tileWidthMm);
+            const remainingY = wallHeightMm - (tilesY * tileHeightMm);
+
+            const edgeGridsX = Math.floor(remainingX / gridSize);
+            const edgeGridsY = Math.floor(remainingY / gridSize);
+
+            const mainTileArea = tilesX * tilesY * tileWidthMm * tileHeightMm;
+            const edgeAreaX = edgeGridsX > 0 ? tilesY * (edgeGridsX * gridSize * tileHeightMm) : 0;
+            const edgeAreaY = edgeGridsY > 0 ? tilesX * (tileWidthMm * edgeGridsY * gridSize) : 0;
+            const cornerArea = (edgeGridsX > 0 && edgeGridsY > 0) ? (edgeGridsX * gridSize * edgeGridsY * gridSize) : 0;
+
+            const totalUsedArea = mainTileArea + edgeAreaX + edgeAreaY + cornerArea;
+            const totalWallArea = wallWidthMm * wallHeightMm;
+            const coverage = totalWallArea > 0 ? (totalUsedArea / totalWallArea * 100).toFixed(1) : 0;
+
+            const results = [];
+            const totalMainTiles = tilesX * tilesY;
+
+            if (totalMainTiles > 0) results.push({ type: 'main', name: `${tileWidth}×${tileHeight} OpenGrid ${tileType.charAt(0).toUpperCase() + tileType.slice(1)} Tile`, quantity: totalMainTiles, color: tileColors.main });
+            if (edgeGridsX > 0 && tilesY > 0) results.push({ type: 'edgeRight', name: `${edgeGridsX}×${tileHeight} OpenGrid ${tileType.charAt(0).toUpperCase() + tileType.slice(1)} Edge Tile`, quantity: tilesY, color: tileColors.edgeRight });
+            if (edgeGridsY > 0 && tilesX > 0) results.push({ type: 'edgeBottom', name: `${tileWidth}×${edgeGridsY} OpenGrid ${tileType.charAt(0).toUpperCase() + tileType.slice(1)} Edge Tile`, quantity: tilesX, color: tileColors.edgeBottom });
+            if (edgeGridsX > 0 && edgeGridsY > 0) results.push({ type: 'corner', name: `${edgeGridsX}×${edgeGridsY} OpenGrid ${tileType.charAt(0).toUpperCase() + tileType.slice(1)} Corner Tile`, quantity: 1, color: tileColors.corner });
+
+            const totalTiles = results.reduce((sum, item) => sum + item.quantity, 0);
+
+            if (totalTiles > 0) results.push({ type: 'connector', name: 'Multiconnect Connectors', quantity: totalTiles * 2, color: tileColors.connector });
+
+            const printTimeHours = (totalTiles * (tileType === 'lite' ? 0.8 : 1.5)).toFixed(1);
+
+            // Update UI
+            document.getElementById('totalTiles').textContent = totalTiles;
+            document.getElementById('coverage').textContent = coverage + '%';
+            document.getElementById('printTime').textContent = printTimeHours + 'h';
+            document.getElementById('summaryStats').style.display = 'grid';
+
+            // Store results for export
+            lastCalculationResults = {
+                totalTiles, coverage, printTimeHours, results,
+                tilesX, tilesY, edgeGridsX, edgeGridsY, tileWidth, tileHeight
+            };
+
+            updateGridPreview(tilesX, tilesY, tileWidth, tileHeight, remainingX, remainingY, gridSize);
+            updateResultsList(results);
+        }
+
+        // --- DISPLAY & UPDATE FUNCTIONS ---
+
+        function displayOptimalOptions() {
+            const container = document.getElementById('optimalOptions');
+            if (currentOptimalSizes.length === 0) {
+                container.innerHTML = '<div class="no-results" style="padding: 10px 0;">Enter wall size to see options.</div>';
+                return;
+            }
+            container.innerHTML = currentOptimalSizes.map((option, index) => `
+                <div class="optimal-option ${index === selectedOptimalIndex ? 'selected' : ''}" onclick="selectOptimalOption(${index})">
+                    <div class="option-details">
+                        <div class="option-size">${option.width}×${option.height} grids</div>
+                        <div class="option-stats">${option.coverage}% coverage • ${option.totalTiles} tiles</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateGridPreview(tilesX, tilesY, tileWidth, tileHeight, remainingX, remainingY, gridSize) {
+            const preview = document.getElementById('gridPreview');
+            preview.innerHTML = ''; // Clear previous preview
+
+            if (tilesX === 0 && tilesY === 0) {
+                preview.innerHTML = '<div class="no-results">Wall too small for any tiles of this size.</div>';
+                return;
+            }
+
+            const wallWidth = parseFloat(document.getElementById('wallWidth').value) || 0;
+            const wallHeight = parseFloat(document.getElementById('wallHeight').value) || 0;
+            const units = document.getElementById('units').value;
+            let wallWidthMm = units === 'inch' ? wallWidth * 25.4 : wallWidth;
+            let wallHeightMm = units === 'inch' ? wallHeight * 25.4 : wallHeight;
+
+            const wallAspectRatio = wallWidthMm / wallHeightMm;
+            const maxDisplaySize = Math.min(preview.clientWidth - 40, 300);
+
+            let displayWidth, displayHeight;
+            if (wallAspectRatio > 1) {
+                displayWidth = maxDisplaySize;
+                displayHeight = maxDisplaySize / wallAspectRatio;
+            } else {
+                displayHeight = maxDisplaySize;
+                displayWidth = maxDisplaySize * wallAspectRatio;
+            }
+
+            const pixelsPerMmX = displayWidth / wallWidthMm;
+            const pixelsPerMmY = displayHeight / wallHeightMm;
+
+            const container = document.createElement('div');
+            container.style.cssText = `position: relative; width: ${displayWidth}px; height: ${displayHeight}px; border: 2px solid #7d8590; background: #161b22;`;
+
+            const tileWidthMm = tileWidth * gridSize;
+            const tileHeightMm = tileHeight * gridSize;
+            const edgeGridsX = Math.floor(remainingX / gridSize);
+            const edgeGridsY = Math.floor(remainingY / gridSize);
+
+            const createTileDiv = (x, y, w, h, color, type) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile'; // Add class for highlighting
+                tile.dataset.tileType = type;
+                tile.style.cssText = `position: absolute; left: ${x}px; top: ${y}px; width: ${w-1}px; height: ${h-1}px; background: ${color};`;
+                return tile;
+            };
+
+            for (let y = 0; y < tilesY; y++) {
+                for (let x = 0; x < tilesX; x++) {
+                    container.appendChild(createTileDiv(x * tileWidthMm * pixelsPerMmX, y * tileHeightMm * pixelsPerMmY, tileWidthMm * pixelsPerMmX, tileHeightMm * pixelsPerMmY, tileColors.main, 'main'));
+                }
+            }
+            if (edgeGridsX > 0) {
+                for (let y = 0; y < tilesY; y++) {
+                    container.appendChild(createTileDiv(tilesX * tileWidthMm * pixelsPerMmX, y * tileHeightMm * pixelsPerMmY, edgeGridsX * gridSize * pixelsPerMmX, tileHeightMm * pixelsPerMmY, tileColors.edgeRight, 'edgeRight'));
+                }
+            }
+            if (edgeGridsY > 0) {
+                for (let x = 0; x < tilesX; x++) {
+                     container.appendChild(createTileDiv(x * tileWidthMm * pixelsPerMmX, tilesY * tileHeightMm * pixelsPerMmY, tileWidthMm * pixelsPerMmX, edgeGridsY * gridSize * pixelsPerMmY, tileColors.edgeBottom, 'edgeBottom'));
+                }
+            }
+            if (edgeGridsX > 0 && edgeGridsY > 0) {
+                container.appendChild(createTileDiv(tilesX * tileWidthMm * pixelsPerMmX, tilesY * tileHeightMm * pixelsPerMmY, edgeGridsX * gridSize * pixelsPerMmX, edgeGridsY * gridSize * pixelsPerMmY, tileColors.corner, 'corner'));
+            }
+
+            preview.appendChild(container);
+        }
+
+        function updateResultsList(results) {
+            const resultsList = document.getElementById('resultsList');
+            if (results.length === 0) {
+                resultsList.innerHTML = '<div class="no-results">No tiles calculated</div>';
+                return;
+            }
+            resultsList.innerHTML = results.map(item => `
+                <div class="result-item" data-tile-type="${item.type}" style="border-left-color: ${item.color};">
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-quantity" style="background-color: ${item.color};">${item.quantity}</span>
+                </div>
+            `).join('');
+        }
+
+        // --- EXPORT & MODAL FUNCTIONS ---
+
+        function exportResults() {
+            if (!lastCalculationResults) {
+                const exportBtn = document.querySelector('.export-btn');
+                exportBtn.textContent = 'Calculate First!';
+                setTimeout(() => { exportBtn.textContent = 'Export Results'; }, 2000);
+                return;
+            }
+
+            const { totalTiles, coverage, printTimeHours, results, tilesX, tilesY, edgeGridsX, edgeGridsY, tileWidth, tileHeight } = lastCalculationResults;
+            const wallWidth = document.getElementById('wallWidth').value;
+            const wallHeight = document.getElementById('wallHeight').value;
+            const units = document.getElementById('units').value;
+
+            let exportString = `OpenGrid Layout Plan\n`;
+            exportString += `====================\n\n`;
+            exportString += `Surface Size: ${wallWidth} x ${wallHeight} ${units}\n\n`;
+
+            exportString += `--- Summary ---\n`;
+            exportString += `Total Tiles: ${totalTiles}\n`;
+            exportString += `Coverage:    ${coverage}%\n`;
+            exportString += `Print Time:  ~${printTimeHours}h\n\n`;
+
+            exportString += `--- ASCII Layout ---\n`;
+            exportString += `M = Main (${tileWidth}x${tileHeight}), R = Right Edge, B = Bottom Edge, C = Corner\n`;
+            for (let y = 0; y < tilesY; y++) {
+                let row = 'M '.repeat(tilesX);
+                if (edgeGridsX > 0) row += 'R';
+                exportString += row + '\n';
+            }
+            if (edgeGridsY > 0) {
+                let row = 'B '.repeat(tilesX);
+                if (edgeGridsX > 0) row += 'C';
+                exportString += row + '\n';
+            }
+            exportString += `\n`;
+
+            exportString += `--- Bill of Materials ---\n`;
+            results.forEach(item => {
+                exportString += `${item.quantity.toString().padStart(3, ' ')}x ${item.name}\n`;
+            });
+
+            document.getElementById('exportText').value = exportString;
+            document.getElementById('exportModal').classList.add('visible');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('visible');
+        }
+
+        function copyToClipboard() {
+            const textarea = document.getElementById('exportText');
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const copyBtn = document.getElementById('copyBtn');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            window.getSelection().removeAllRanges();
+        }
+
+        // --- EVENT LISTENERS & INITIALIZATION ---
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Converter listeners
+            document.getElementById('fractionInput').addEventListener('input', function() {
+                const decimal = parseFraction(this.value.trim());
+                document.getElementById('decimalOutput').value = decimal ? decimal.toFixed(4) : '';
+                if (decimal) {
+                    document.getElementById('inchInput').value = decimal.toFixed(4);
+                    document.getElementById('mmOutput').value = (decimal * 25.4).toFixed(2);
+                }
+            });
+            document.getElementById('inchInput').addEventListener('input', () => {
+                document.getElementById('mmOutput').value = ((parseFloat(document.getElementById('inchInput').value) || 0) * 25.4).toFixed(2);
+            });
+            document.getElementById('mmInput').addEventListener('input', () => {
+                document.getElementById('inchOutput').value = ((parseFloat(document.getElementById('mmInput').value) || 0) / 25.4).toFixed(4);
+            });
+
+            // Main control listeners
+            const inputs = ['wallWidth', 'wallHeight', 'units', 'tileWidth', 'tileHeight', 'printerModel', 'tileType'];
+            inputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', () => {
+                        if (id === 'printerModel') updatePrinterInfo();
+                        if (currentLayoutMode === 'optimal') calculateOptimalSizes();
+                        else calculateTiles();
+                    });
+                }
+            });
+
+            // Highlight listeners
+            const resultsList = document.getElementById('resultsList');
+            resultsList.addEventListener('mouseover', e => {
+                const item = e.target.closest('.result-item');
+                if(!item) return;
+                const type = item.dataset.tileType;
+                if (!type || type === 'connector') return; // Do not highlight connectors
+
+                document.getElementById('gridPreview').classList.add('highlighting');
+                document.querySelectorAll(`.result-item[data-tile-type="${type}"]`).forEach(el => el.classList.add('highlight'));
+                document.querySelectorAll(`.tile[data-tile-type="${type}"]`).forEach(el => el.classList.add('highlight'));
+            });
+             resultsList.addEventListener('mouseout', e => {
+                const item = e.target.closest('.result-item');
+                if(!item) return;
+                document.getElementById('gridPreview').classList.remove('highlighting');
+                document.querySelectorAll('.result-item.highlight, .tile.highlight').forEach(el => el.classList.remove('highlight'));
+            });
+
+            // Initial setup
+            updatePrinterInfo();
+            calculateOptimalSizes();
+        });
+    </script>
+</body>
+</html>
