@@ -244,10 +244,32 @@ const STATES=[];                 // {k, moves (from solved), depth}
 })();
 const DEPTH_COUNTS = STATES.reduce((o,s)=>(o[s.depth]=(o[s.depth]||0)+1,o),{});
 
+// A state solvable using moves from just one axis never needs the other axis.
+// Each single-axis subgroup is tiny: vertical {solved, U2, D2, U2 D2} and
+// horizontal {solved, R2, L2, R2 L2} (R2 L2 is just a middle turn). We exclude
+// both, so every scramble mixes axes - it always needs at least one vertical
+// (U2/D2) AND one horizontal (R2/L2) move to solve, and can never be the
+// degenerate single-axis kind that barely disturbs the puzzle. This also makes
+// every scramble at least two moves.
+function axisClosure(moveSet){
+  const keys=new Set();
+  let frontier=[solved()]; keys.add(key(frontier[0]));
+  while(frontier.length){
+    const next=[];
+    for(const p of frontier) for(const m of moveSet){
+      const q=p.map(x=>({...x})); applyMove(q,m);
+      const k=key(q); if(keys.has(k)) continue;
+      keys.add(k); next.push(q);
+    }
+    frontier=next;
+  }
+  return keys;
+}
+const SINGLE_AXIS = new Set([...axisClosure(['U2','D2']), ...axisClosure(['R2','L2'])]);
+
 function randomScramble(depthFilter){
-  const pool = depthFilter
-    ? STATES.filter(s=>s.depth===depthFilter)
-    : STATES.filter(s=>s.depth>=2);   // uniform over states, excluding trivial ones
+  const pool = (depthFilter ? STATES.filter(s=>s.depth===depthFilter) : STATES)
+    .filter(s=>!SINGLE_AXIS.has(key(s.state)));  // must mix axes: needs a U2/D2 and an R2/L2
   return pool[Math.floor(Math.random()*pool.length)].moves;
 }
 
