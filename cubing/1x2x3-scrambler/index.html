@@ -244,17 +244,19 @@ const STATES=[];                 // {k, moves (from solved), depth}
 })();
 const DEPTH_COUNTS = STATES.reduce((o,s)=>(o[s.depth]=(o[s.depth]||0)+1,o),{});
 
-// States solvable with vertical moves (U2/D2) alone never need a column turn.
-// The subgroup they generate is tiny - {solved, U2, D2, U2 D2} - so we exclude
-// it from the pool: every scramble then genuinely requires at least one R2 or
-// L2 to restore, and the degenerate "all vertical" scrambles that barely
-// disturb the puzzle never appear.
-const VERTICAL_ONLY = (function(){
+// A state solvable using moves from just one axis never needs the other axis.
+// Each single-axis subgroup is tiny: vertical {solved, U2, D2, U2 D2} and
+// horizontal {solved, R2, L2, R2 L2} (R2 L2 is just a middle turn). We exclude
+// both, so every scramble mixes axes - it always needs at least one vertical
+// (U2/D2) AND one horizontal (R2/L2) move to solve, and can never be the
+// degenerate single-axis kind that barely disturbs the puzzle. This also makes
+// every scramble at least two moves.
+function axisClosure(moveSet){
   const keys=new Set();
   let frontier=[solved()]; keys.add(key(frontier[0]));
   while(frontier.length){
     const next=[];
-    for(const p of frontier) for(const m of ['U2','D2']){
+    for(const p of frontier) for(const m of moveSet){
       const q=p.map(x=>({...x})); applyMove(q,m);
       const k=key(q); if(keys.has(k)) continue;
       keys.add(k); next.push(q);
@@ -262,13 +264,12 @@ const VERTICAL_ONLY = (function(){
     frontier=next;
   }
   return keys;
-})();
+}
+const SINGLE_AXIS = new Set([...axisClosure(['U2','D2']), ...axisClosure(['R2','L2'])]);
 
 function randomScramble(depthFilter){
-  const pool = (depthFilter
-    ? STATES.filter(s=>s.depth===depthFilter)
-    : STATES.filter(s=>s.depth>=2))            // uniform over states, excluding trivial ones
-    .filter(s=>!VERTICAL_ONLY.has(key(s.state)));  // must need an R2/L2 to solve
+  const pool = (depthFilter ? STATES.filter(s=>s.depth===depthFilter) : STATES)
+    .filter(s=>!SINGLE_AXIS.has(key(s.state)));  // must mix axes: needs a U2/D2 and an R2/L2
   return pool[Math.floor(Math.random()*pool.length)].moves;
 }
 
