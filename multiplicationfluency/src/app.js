@@ -1,5 +1,11 @@
 /* Multiplication Fluency — spaced-repetition drilling for times tables.
- * Everything (schedule + stats) lives in localStorage; no network, no build step.
+ *
+ * Fluency, not just correctness, is the goal: a fact only counts as known
+ * when it is recalled *quickly*, so answer speed drives the grading, the
+ * schedule, the mastery colours, and the animals you collect.
+ *
+ * Everything (schedule + stats + menagerie) lives in localStorage; no network,
+ * no build step.
  */
 (function () {
   'use strict';
@@ -13,9 +19,11 @@
   const MINUTE = 60 * 1000;
   const DAY = 24 * 60 * MINUTE;
 
-  /* Answer-speed thresholds that turn a correct answer into a grade. */
-  const FAST_MS = 2500;   // recalled instantly -> "easy"
-  const OK_MS = 6000;     // recalled, but worked for it -> "hard" beyond this
+  /* Answer-speed thresholds. FLUENT_MS is *the* bar: a correct answer slower
+   * than this is knowledge, not fluency, and the scheduler treats it that way. */
+  const SNAP_MS = 1500;      // straight off the top of your head -> "easy"
+  const FLUENT_MS = 3000;    // the fluency bar; slower correct answers -> "hard"
+  const FLUENT_STREAK = 3;   // quick answers in a row before a fact counts fluent
 
   /* Scheduler knobs (SM-2 with Anki-ish learning steps). */
   const START_EASE = 2.5;
@@ -40,7 +48,7 @@
     retry: true,
   });
 
-  let store = { v: 1, facts: {}, prefs: defaultPrefs() };
+  let store = { v: 1, facts: {}, prefs: defaultPrefs(), animals: {} };
 
   function load() {
     try {
@@ -50,6 +58,11 @@
       if (parsed && typeof parsed === 'object') {
         store.facts = parsed.facts && typeof parsed.facts === 'object' ? parsed.facts : {};
         store.prefs = Object.assign(defaultPrefs(), parsed.prefs || {});
+        store.animals = parsed.animals && typeof parsed.animals === 'object' ? parsed.animals : {};
+        /* Records written before fluency tracking existed have no streak. */
+        Object.keys(store.facts).forEach((k) => {
+          if (typeof store.facts[k].fastStreak !== 'number') store.facts[k].fastStreak = 0;
+        });
       }
     } catch (e) {
       /* corrupt or unavailable storage: start fresh, silently */
@@ -80,6 +93,7 @@
       due: 0,           // epoch ms; 0 = never scheduled
       seen: 0,
       correct: 0,
+      fastStreak: 0,    // correct answers in a row inside the fluency bar
       avgMs: 0,
       lastMs: 0,
       lastSeen: 0,
@@ -96,10 +110,12 @@
 
   function gradeOf(correct, ms) {
     if (!correct) return 'again';
-    if (ms <= FAST_MS) return 'easy';
-    if (ms <= OK_MS) return 'good';
-    return 'hard';
+    if (ms <= SNAP_MS) return 'easy';
+    if (ms <= FLUENT_MS) return 'good';
+    return 'hard';   // right, but worked it out — not fluent yet
   }
+
+  const isQuick = (ms) => ms <= FLUENT_MS;
 
   /* Slight randomisation so facts learned together don't clump forever. */
   const fuzz = () => 0.95 + Math.random() * 0.1;
@@ -124,8 +140,13 @@
     }
 
     if (rec.learning) {
-      /* A new (or lapsed) fact has to come back correct twice before it is
-       * allowed out to day-scale intervals. */
+      /* A new (or lapsed) fact has to come back *quickly* twice before it is
+       * allowed out to day-scale intervals. Working the answer out counts as
+       * a correct answer, but it does not advance the learning step. */
+      if (grade === 'hard') {
+        rec.due = now + LEARNING_STEP;
+        return 'learning';
+      }
       rec.step++;
       if (rec.step < LEARNING_STEPS) {
         rec.due = now + LEARNING_STEP;
@@ -139,17 +160,17 @@
       return 'review';
     }
 
-    if (grade === 'hard') rec.ease = Math.max(MIN_EASE, rec.ease - 0.15);
-    if (grade === 'easy') rec.ease = rec.ease + 0.1;
-
-    let next;
-    if (rec.reps <= 1) {
-      next = grade === 'hard' ? 1 : grade === 'good' ? 3 : 5;
+    if (grade === 'hard') {
+      /* Slow recall is a step backwards: see it again sooner, not later. */
+      rec.ease = Math.max(MIN_EASE, rec.ease - 0.15);
+      rec.interval = Math.max(1, rec.interval * 0.7);
     } else {
-      const mult = grade === 'hard' ? 0.6 : grade === 'easy' ? 1.3 : 1;
-      next = Math.max(rec.interval + 0.5, rec.interval * rec.ease * mult);
+      if (grade === 'easy') rec.ease = rec.ease + 0.1;
+      const next = rec.reps <= 1
+        ? (grade === 'good' ? 3 : 5)
+        : Math.max(rec.interval + 0.5, rec.interval * rec.ease * (grade === 'easy' ? 1.3 : 1));
+      rec.interval = Math.min(MAX_INTERVAL, next);
     }
-    rec.interval = Math.min(MAX_INTERVAL, next);
     rec.reps++;
     rec.due = now + rec.interval * DAY * fuzz();
     return 'review';
@@ -163,6 +184,7 @@
       rec.correct++;
       rec.avgMs = rec.avgMs ? Math.round(rec.avgMs * 0.7 + ms * 0.3) : ms;
     }
+    rec.fastStreak = (correct && isQuick(ms)) ? rec.fastStreak + 1 : 0;
     rec.lastMs = ms;
     rec.lastSeen = now;
     const outcome = schedule(rec, gradeOf(correct, ms), now);
@@ -172,19 +194,28 @@
 
   /* ---------------------------------------------------------------- mastery */
 
+  /* Fluent means recalled quickly, repeatedly — not merely answered right.
+   * Deliberately independent of how long the interval has grown, so a fact
+   * can be earned as fluent in the session where you actually get quick at it. */
+  function isFluent(rec) {
+    return !!rec && !rec.learning && rec.fastStreak >= FLUENT_STREAK &&
+      !!rec.avgMs && rec.avgMs <= FLUENT_MS;
+  }
+
   function mastery(k) {
     const rec = getRecord(k);
     if (!rec || !rec.seen) return 'new';
-    if (rec.learning || rec.interval < 1) return 'learning';
-    if (rec.interval < 14) return 'practicing';
-    return 'fluent';
+    if (rec.learning) return 'learning';
+    if (isFluent(rec)) return 'fluent';
+    return 'practicing';
   }
 
+  /* Slow counts against you as much as wrong does — that is the whole point. */
   function weakness(rec) {
     if (!rec || !rec.seen) return 0;
     const errRate = 1 - rec.correct / rec.seen;
-    const slow = rec.avgMs ? Math.min(1, Math.max(0, (rec.avgMs - OK_MS) / OK_MS)) : 0;
-    return errRate * 3 + rec.lapses * 0.5 + slow;
+    const slow = rec.avgMs ? Math.min(1.5, Math.max(0, (rec.avgMs - FLUENT_MS) / FLUENT_MS)) : 0;
+    return errRate * 3 + rec.lapses * 0.5 + slow * 1.5;
   }
 
   function weakestKeys(limit) {
@@ -195,6 +226,67 @@
       })
       .sort((x, y) => weakness(store.facts[y]) - weakness(store.facts[x]))
       .slice(0, limit);
+  }
+
+  /* -------------------------------------------------------------- menagerie */
+
+  /* Companions hatch as your count of *fluent* facts grows. Nothing here is
+   * awarded for merely getting answers right — only for getting quick. */
+  const COMPANIONS = [
+    { need: 1, emoji: '🐰', name: 'Bunny' },
+    { need: 3, emoji: '🐣', name: 'Chick' },
+    { need: 6, emoji: '🐹', name: 'Hamster' },
+    { need: 10, emoji: '🐥', name: 'Duckling' },
+    { need: 15, emoji: '🐢', name: 'Turtle' },
+    { need: 21, emoji: '🦔', name: 'Hedgehog' },
+    { need: 28, emoji: '🐸', name: 'Frog' },
+    { need: 36, emoji: '🐱', name: 'Kitten' },
+    { need: 45, emoji: '🐶', name: 'Puppy' },
+    { need: 55, emoji: '🐧', name: 'Penguin' },
+    { need: 66, emoji: '🦦', name: 'Otter' },
+    { need: 78, emoji: '🦊', name: 'Fox cub' },
+    { need: 91, emoji: '🐨', name: 'Koala' },
+    { need: 105, emoji: '🐼', name: 'Panda' },
+    { need: 120, emoji: '🦄', name: 'Unicorn' },
+  ];
+  COMPANIONS.forEach((c) => { c.id = 'c' + c.need; });
+
+  const DRAGON_TABLES = 12;   // one dragon per times table, 1s through 12s
+  const DRAGON_FACTS = 12;    // t×1 .. t×12 all fluent
+
+  const dragonDef = (t) => ({
+    id: 'd' + t, emoji: '🐲', name: 'Dragon of the ' + t + 's', table: t, dragon: true,
+  });
+
+  const fluentTotal = () =>
+    Object.keys(store.facts).filter((k) => isFluent(store.facts[k])).length;
+
+  function tableFluentCount(t) {
+    let n = 0;
+    for (let b = 1; b <= DRAGON_FACTS; b++) if (isFluent(getRecord(key(t, b)))) n++;
+    return n;
+  }
+
+  /* Returns the animals earned right now. Once earned they are kept for good —
+   * a fact going stale later never takes an animal away. */
+  function checkUnlocks() {
+    const fresh = [];
+    const total = fluentTotal();
+    COMPANIONS.forEach((c) => {
+      if (total >= c.need && !store.animals[c.id]) {
+        store.animals[c.id] = Date.now();
+        fresh.push(c);
+      }
+    });
+    for (let t = 1; t <= DRAGON_TABLES; t++) {
+      const d = dragonDef(t);
+      if (!store.animals[d.id] && tableFluentCount(t) >= DRAGON_FACTS) {
+        store.animals[d.id] = Date.now();
+        fresh.push(d);
+      }
+    }
+    if (fresh.length) save();
+    return fresh;
   }
 
   /* ------------------------------------------------------------------- pool */
@@ -267,6 +359,12 @@
     pickHelp: $('pickHelp'), dueLine: $('dueLine'),
     modeSeg: $('modeSeg'), sprintField: $('sprintField'), setField: $('setField'),
     seconds: $('seconds'), count: $('count'), optRetry: $('optRetry'), btnStart: $('btnStart'),
+    zooSummary: $('zooSummary'), zooNext: $('zooNext'),
+    zooBarWrap: $('zooBarWrap'), zooBar: $('zooBar'),
+    drillReward: $('drillReward'), summaryNext: $('summaryNext'),
+    zooCompanions: $('zooCompanions'), zooDragons: $('zooDragons'),
+    unlockWrap: $('unlockWrap'), unlockHead: $('unlockHead'), unlockList: $('unlockList'),
+    fluBar: $('fluBar'), fluFill: $('fluFill'), toast: $('toast'),
     progressSummary: $('progressSummary'), heatmap: $('heatmap'),
     focusLabel: $('focusLabel'), focusList: $('focusList'),
     btnDrillWeak: $('btnDrillWeak'), btnReset: $('btnReset'),
@@ -276,6 +374,7 @@
     summaryTitle: $('summaryTitle'), summaryStats: $('summaryStats'), summarySched: $('summarySched'),
     summaryMissedWrap: $('summaryMissedWrap'), summaryMissed: $('summaryMissed'),
     summarySlowWrap: $('summarySlowWrap'), summarySlow: $('summarySlow'),
+    summarySlowTitle: $('summarySlowTitle'),
     btnAgain: $('btnAgain'), btnPracticeMissed: $('btnPracticeMissed'), btnBack: $('btnBack'),
     btnTheme: $('btnTheme'),
   };
@@ -349,6 +448,106 @@
     }
 
     renderProgress(keys);
+    renderZoo();
+  }
+
+  function petTile(def, earned, need, fresh) {
+    const d = document.createElement('div');
+    d.className = 'pet ' + (earned ? 'earned' : 'locked') + (fresh ? ' fresh' : '');
+    const face = document.createElement('div');
+    face.className = 'face';
+    face.textContent = earned ? def.emoji : (def.dragon ? '🥚' : def.emoji);
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = def.name;
+    const req = document.createElement('div');
+    req.className = 'need';
+    req.textContent = earned ? 'earned' : need;
+    d.appendChild(face);
+    d.appendChild(name);
+    d.appendChild(req);
+    d.title = def.name + ' — ' + (earned ? 'earned' : need);
+    return d;
+  }
+
+  /* What the next animal is and how close it is — shown on the setup screen,
+   * during the drill, and on the summary, so the reward is never a mystery. */
+  function nextReward() {
+    const total = fluentTotal();
+    const pet = COMPANIONS.filter((c) => !store.animals[c.id])[0];
+    if (pet) {
+      const prev = COMPANIONS.filter((c) => c.need < pet.need).pop();
+      const from = prev ? prev.need : 0;
+      return {
+        def: pet,
+        have: total,
+        need: pet.need,
+        togo: Math.max(0, pet.need - total),
+        pct: Math.min(100, Math.round((total - from) / (pet.need - from) * 100)),
+        text: '',
+      };
+    }
+    /* Companions all earned: point at the closest unhatched dragon egg. */
+    let best = null;
+    for (let t = 1; t <= DRAGON_TABLES; t++) {
+      const d = dragonDef(t);
+      if (store.animals[d.id]) continue;
+      const have = tableFluentCount(t);
+      if (!best || have > best.have) {
+        best = {
+          def: d, have, need: DRAGON_FACTS, togo: DRAGON_FACTS - have,
+          pct: Math.round(have / DRAGON_FACTS * 100),
+          text: 'in the ' + t + 's',
+        };
+      }
+    }
+    return best;
+  }
+
+  function rewardLine(next) {
+    if (!next) return 'Every animal earned. The whole menagerie is yours. 🎉';
+    return next.def.emoji + ' <b>' + next.def.name + '</b> — ' +
+      (next.togo > 0
+        ? next.togo + ' more fluent fact' + (next.togo === 1 ? '' : 's') +
+          (next.text ? ' ' + next.text : '')
+        : 'ready to hatch!');
+  }
+
+  function renderZoo() {
+    const total = fluentTotal();
+    const earnedCount = Object.keys(store.animals).length;
+    const all = COMPANIONS.length + DRAGON_TABLES;
+    el.zooSummary.textContent = earnedCount + ' of ' + all + ' animals · ' +
+      total + ' fluent fact' + (total === 1 ? '' : 's') +
+      ' — a fact turns fluent after 3 quick answers in a row.';
+
+    const next = nextReward();
+    el.zooNext.innerHTML = next ? 'Next up: ' + rewardLine(next) : rewardLine(next);
+    el.zooBarWrap.hidden = !next;
+    el.zooBar.style.width = (next ? next.pct : 100) + '%';
+
+    el.zooCompanions.innerHTML = '';
+    COMPANIONS.forEach((c) => {
+      el.zooCompanions.appendChild(
+        petTile(c, !!store.animals[c.id], c.need + ' fluent facts')
+      );
+    });
+
+    el.zooDragons.innerHTML = '';
+    for (let t = 1; t <= DRAGON_TABLES; t++) {
+      const d = dragonDef(t);
+      el.zooDragons.appendChild(
+        petTile(d, !!store.animals[d.id], tableFluentCount(t) + '/' + DRAGON_FACTS + ' fluent')
+      );
+    }
+  }
+
+  let toastTimer = null;
+  function toast(text) {
+    el.toast.textContent = text;
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
   }
 
   function relativeTime(ms) {
@@ -383,9 +582,11 @@
       const acc = Math.round((rec.correct / rec.seen) * 100);
       const chip = document.createElement('span');
       chip.className = 'fact ' + (acc < 100 ? 'wrong' : 'slow');
-      chip.innerHTML = a + ' &times; ' + b + ' <small>' + acc + '%</small>';
+      chip.innerHTML = a + ' &times; ' + b + ' <small>' +
+        (acc < 100 ? acc + '%' : (rec.avgMs / 1000).toFixed(1) + 's') + '</small>';
       chip.title = a + ' × ' + b + ' = ' + (a * b) + ' — ' + rec.correct + '/' + rec.seen +
-        ' correct, next review ' + (rec.due ? relativeTime(rec.due - Date.now()) : 'now');
+        ' correct, ' + (rec.avgMs ? (rec.avgMs / 1000).toFixed(1) + 's average, ' : '') +
+        'next review ' + (rec.due ? relativeTime(rec.due - Date.now()) : 'now');
       el.focusList.appendChild(chip);
     });
   }
@@ -483,8 +684,9 @@
     el.btnDrillWeak.addEventListener('click', () => startSession({ keys: weakestKeys(15), label: 'Weakest facts' }));
 
     el.btnReset.addEventListener('click', () => {
-      if (!window.confirm('Erase all progress and start the schedule over?')) return;
+      if (!window.confirm('Erase all progress, including every animal you have earned?')) return;
       store.facts = {};
+      store.animals = {};
       save(); syncSetup();
     });
   }
@@ -518,14 +720,17 @@
       startedAt: now,
       asked: 0,
       correct: 0,
-      streak: 0,
+      fluent: 0,          // correct *and* inside the fluency bar
+      streak: 0,          // consecutive fluent answers
       bestStreak: 0,
+      unlocked: [],
       times: [],
       missed: [],
       slow: [],
       introduced: 0,
       graduated: 0,
       lapsed: 0,
+      newlyFluent: 0,
       current: null,
       typed: '',
       phase: 'idle',          // idle | answering | retry | between
@@ -587,7 +792,28 @@
     el.prompt.setAttribute('aria-label', a + ' times ' + b);
     el.srStatus.textContent = a + ' times ' + b;
     paintAnswer();
+    startFluencyBar();
     updateHud();
+  }
+
+  /* The bar drains over exactly the fluency window, so "beat the bar" and
+   * "answer fluently" are the same thing. */
+  function startFluencyBar() {
+    const f = el.fluFill;
+    f.classList.remove('over');
+    f.style.transition = 'none';
+    f.style.width = '100%';
+    void f.offsetWidth;                        // commit before animating
+    f.style.transition = 'width ' + FLUENT_MS + 'ms linear';
+    f.style.width = '0%';
+  }
+
+  function freezeFluencyBar(quick) {
+    const f = el.fluFill;
+    const w = getComputedStyle(f).width;
+    f.style.transition = 'none';
+    f.style.width = w;
+    f.classList.toggle('over', !quick);
   }
 
   function paintAnswer() {
@@ -617,9 +843,9 @@
       el.drillProgress.innerHTML = '<b>' + S.asked + '</b> answered';
       el.drillBar.style.width = '100%';
     }
-    const acc = S.asked ? Math.round(S.correct / S.asked * 100) : 100;
-    el.drillScore.innerHTML = '<b>' + S.correct + '</b>/' + S.asked + ' · ' + acc + '%' +
-      (S.streak >= 3 ? ' · <b>' + S.streak + '</b> streak' : '');
+    el.drillScore.innerHTML = '<b>' + S.fluent + '</b>/' + S.asked + ' fluent' +
+      (S.streak >= 3 ? ' · 🔥<b>' + S.streak + '</b>' : '');
+    el.drillReward.innerHTML = rewardLine(nextReward());
   }
 
   function tick() {
@@ -653,11 +879,16 @@
     const right = given === S.current.answer;
     const fact = S.current.a + ' × ' + S.current.b + ' = ' + S.current.answer;
 
+    const quick = right && isQuick(ms);
+    freezeFluencyBar(quick);
+
     const prev = getRecord(S.current.k);
     const wasLearning = !prev || !prev.seen || prev.learning;
+    const wasFluent = isFluent(prev);
     if (S.current.fresh) S.introduced++;
     const outcome = recordAnswer(S.current.k, right, ms);
     if (outcome === 'review' && wasLearning) S.graduated++;
+    if (!wasFluent && isFluent(getRecord(S.current.k))) S.newlyFluent++;
     if (outcome === 'relearn') S.lapsed++;
     if (outcome === 'relearn' || outcome === 'learning') {
       S.pending.push({
@@ -672,15 +903,26 @@
 
     if (right) {
       S.correct++;
-      S.streak++;
-      S.bestStreak = Math.max(S.bestStreak, S.streak);
-      if (ms > OK_MS) S.slow.push({ k: S.current.k, ms });
-      el.answer.classList.add('right');
-      el.feedback.className = 'feedback right';
-      el.feedback.textContent = (ms <= FAST_MS ? 'Nice — ' : 'Correct — ') + (ms / 1000).toFixed(1) + 's';
-      el.srStatus.textContent = 'Correct';
+      const secs = (ms / 1000).toFixed(1) + 's';
+      if (quick) {
+        S.fluent++;
+        S.streak++;
+        S.bestStreak = Math.max(S.bestStreak, S.streak);
+        el.answer.classList.add('right');
+        el.feedback.className = 'feedback right';
+        el.feedback.textContent = (ms <= SNAP_MS ? 'Snap! ' : 'Fluent — ') + secs;
+        el.srStatus.textContent = 'Correct, ' + secs;
+      } else {
+        /* Right, but worked out. Say so plainly — this is the whole point. */
+        S.streak = 0;
+        S.slow.push({ k: S.current.k, ms });
+        el.answer.classList.add('slowright');
+        el.feedback.className = 'feedback slow';
+        el.feedback.textContent = 'Right, but slow — ' + secs + ' · aim for under 3s';
+        el.srStatus.textContent = 'Correct but slow, ' + secs;
+      }
       S.phase = 'between';
-      setTimeout(afterAnswer, 420);
+      setTimeout(afterAnswer, quick ? 420 : 900);
     } else {
       S.streak = 0;
       S.missed.push({ k: S.current.k, given });
@@ -701,6 +943,11 @@
         setTimeout(afterAnswer, 1400);
       }
     }
+
+    checkUnlocks().forEach((a) => {
+      S.unlocked.push(a);
+      toast(a.emoji + '  ' + a.name + ' earned!');
+    });
     updateHud();
   }
 
@@ -722,7 +969,7 @@
     if (!S) return;
     el.feedback.textContent = '';
     el.feedback.className = 'feedback';
-    el.answer.classList.remove('right', 'wrong');
+    el.answer.classList.remove('right', 'wrong', 'slowright');
     nextQuestion();
   }
 
@@ -781,14 +1028,26 @@
 
     el.summaryStats.innerHTML = '';
     [
+      [s.fluent + '/' + s.asked, 'Fluent (under 3s)'],
       [s.correct + '/' + s.asked, 'Correct'],
       [acc + '%', 'Accuracy'],
       [(median / 1000).toFixed(1) + 's', 'Median time'],
       [String(perMin), 'Per minute'],
-      [String(s.bestStreak), 'Best streak'],
+      [String(s.bestStreak), 'Best fluent streak'],
     ].forEach(([v, k]) => el.summaryStats.appendChild(statTile(v, k)));
 
+    el.unlockWrap.hidden = s.unlocked.length === 0;
+    el.unlockList.innerHTML = '';
+    if (s.unlocked.length) {
+      el.unlockHead.textContent = s.unlocked.length === 1
+        ? 'New animal earned!'
+        : s.unlocked.length + ' new animals earned!';
+      s.unlocked.forEach((a) => el.unlockList.appendChild(petTile(a, true, '', true)));
+    }
+    el.summaryNext.innerHTML = 'Next up: ' + rewardLine(nextReward());
+
     const sched = [];
+    if (s.newlyFluent) sched.push(s.newlyFluent + ' fact' + (s.newlyFluent === 1 ? '' : 's') + ' turned fluent');
     if (s.introduced) sched.push(s.introduced + ' new fact' + (s.introduced === 1 ? '' : 's') + ' introduced');
     if (s.graduated) sched.push(s.graduated + ' graduated to a day or more');
     if (s.lapsed) sched.push(s.lapsed + ' sent back to learning');
@@ -812,6 +1071,7 @@
     const slowKeys = [];
     s.slow.forEach((x) => { if (slowKeys.indexOf(x.k) === -1 && missKeys.indexOf(x.k) === -1) slowKeys.push(x.k); });
     el.summarySlowWrap.hidden = slowKeys.length === 0;
+    el.summarySlowTitle.textContent = 'Right, but too slow (over 3 seconds)';
     el.summarySlow.innerHTML = '';
     slowKeys.forEach((k) => {
       const [a, b] = parseKey(k);
@@ -860,6 +1120,7 @@
   /* -------------------------------------------------------------------- boot */
 
   load();
+  checkUnlocks();          // catch up anything earned by an older build
   buildFactorControls();
   wireSetup();
   wireDrill();

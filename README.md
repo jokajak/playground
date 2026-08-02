@@ -14,7 +14,7 @@ directly from GitHub Pages.
 | [Bracket Maker](bracketmaker/) | Generates printable single-elimination tournament brackets (2–64 participants). | [Use it](https://jokajak.github.io/playground/bracketmaker/) |
 | [QR Code Maker](qrcodemaker/) | Generates QR codes, with optional embedding onto an uploaded picture. | [Use it](https://jokajak.github.io/playground/qrcodemaker/) |
 | [OpenGrid Planner](opengridplanner/) | Plans OpenGrid wall layouts and tile counts, optimized for BambuLab printer bed sizes. | [Use it](https://jokajak.github.io/playground/opengridplanner/) |
-| [Multiplication Fluency](multiplicationfluency/) | Spaced-repetition times-table drills that bring each fact back right before you'd forget it. | [Use it](https://jokajak.github.io/playground/multiplicationfluency/) |
+| [Multiplication Fluency](multiplicationfluency/) | Quick-recall times-table drills with spaced repetition, and a menagerie of animals to earn. | [Use it](https://jokajak.github.io/playground/multiplicationfluency/) |
 
 ### Cubing
 
