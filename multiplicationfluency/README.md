@@ -81,6 +81,15 @@ Dragon of the 7s). Twelve dragons, twenty-seven animals in all.
 Animals are never taken away — if a fact goes stale later, you keep the animal
 it earned. Only **Reset progress** clears them, and it says so before it does.
 
+### Naming them
+
+Click (or tap) any animal you have earned in the Menagerie to give it a name —
+your hamster can be Nibbles, the Dragon of the 3s can be Sparky. **Enter** saves,
+**Esc** cancels, and clearing the box puts the species name back. A renamed
+animal shows what it started as in small print underneath, and the name follows
+it everywhere: the sideline cheers, the welcome bubble, and the flying dragons.
+Locked animals can't be named yet.
+
 ### They cheer you on
 
 The animals you have earned line the sides of the drill (a single row above the

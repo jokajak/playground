@@ -48,7 +48,7 @@
     retry: true,
   });
 
-  let store = { v: 1, facts: {}, prefs: defaultPrefs(), animals: {} };
+  let store = { v: 1, facts: {}, prefs: defaultPrefs(), animals: {}, names: {} };
 
   function load() {
     try {
@@ -59,6 +59,7 @@
         store.facts = parsed.facts && typeof parsed.facts === 'object' ? parsed.facts : {};
         store.prefs = Object.assign(defaultPrefs(), parsed.prefs || {});
         store.animals = parsed.animals && typeof parsed.animals === 'object' ? parsed.animals : {};
+        store.names = parsed.names && typeof parsed.names === 'object' ? parsed.names : {};
         /* Records written before fluency tracking existed have no streak. */
         Object.keys(store.facts).forEach((k) => {
           if (typeof store.facts[k].fastStreak !== 'number') store.facts[k].fastStreak = 0;
@@ -258,6 +259,10 @@
     id: 'd' + t, emoji: '🐲', name: 'Dragon of the ' + t + 's', table: t, dragon: true,
   });
 
+  const MAX_NAME = 18;
+  /* What to call an animal: whatever you named it, else its species. */
+  const displayName = (def) => store.names[def.id] || def.name;
+
   const fluentTotal = () =>
     Object.keys(store.facts).filter((k) => isFluent(store.facts[k])).length;
 
@@ -453,7 +458,7 @@
     renderSky();
   }
 
-  function petTile(def, earned, need, fresh) {
+  function petTile(def, earned, need, fresh, renamable) {
     const d = document.createElement('div');
     d.className = 'pet ' + (earned ? 'earned' : 'locked') + (fresh ? ' fresh' : '');
     const face = document.createElement('div');
@@ -461,15 +466,66 @@
     face.textContent = earned ? def.emoji : (def.dragon ? '🥚' : def.emoji);
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = def.name;
+    name.textContent = earned ? displayName(def) : def.name;
     const req = document.createElement('div');
     req.className = 'need';
-    req.textContent = earned ? 'earned' : need;
+    /* Once renamed, the small print reminds you what species it started as. */
+    req.textContent = earned
+      ? (store.names[def.id] ? def.name : (renamable ? 'tap to name' : 'earned'))
+      : need;
     d.appendChild(face);
     d.appendChild(name);
     d.appendChild(req);
-    d.title = def.name + ' — ' + (earned ? 'earned' : need);
+    d.title = displayName(def) + ' — ' + (earned ? (renamable ? 'click to rename' : 'earned') : need);
+
+    if (earned && renamable) {
+      d.classList.add('renamable');
+      d.setAttribute('role', 'button');
+      d.tabIndex = 0;
+      d.addEventListener('click', () => startRename(def, d));
+      d.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startRename(def, d); }
+      });
+    }
     return d;
+  }
+
+  function startRename(def, tile) {
+    const nameEl = tile.querySelector('.name');
+    if (!nameEl) return;                       // already editing
+    tile.removeAttribute('role');
+    tile.removeAttribute('tabindex');
+
+    const input = document.createElement('input');
+    input.className = 'rename';
+    input.type = 'text';
+    input.value = displayName(def);
+    input.maxLength = MAX_NAME;
+    input.setAttribute('aria-label', 'Name for your ' + def.name);
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let settled = false;
+    const finish = (keep) => {
+      if (settled) return;
+      settled = true;
+      if (keep) {
+        const v = input.value.trim().replace(/\s+/g, ' ');
+        if (!v || v === def.name) delete store.names[def.id];
+        else store.names[def.id] = v;
+        save();
+      }
+      renderZoo();
+      renderSky();
+    };
+
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
   }
 
   /* What the next animal is and how close it is — shown on the setup screen,
@@ -508,7 +564,7 @@
 
   function rewardLine(next) {
     if (!next) return 'Every animal earned. The whole menagerie is yours. 🎉';
-    return next.def.emoji + ' <b>' + next.def.name + '</b> — ' +
+    return next.def.emoji + ' <b>' + displayName(next.def) + '</b> — ' +
       (next.togo > 0
         ? next.togo + ' more fluent fact' + (next.togo === 1 ? '' : 's') +
           (next.text ? ' ' + next.text : '')
@@ -531,7 +587,7 @@
     el.zooCompanions.innerHTML = '';
     COMPANIONS.forEach((c) => {
       el.zooCompanions.appendChild(
-        petTile(c, !!store.animals[c.id], c.need + ' fluent facts')
+        petTile(c, !!store.animals[c.id], c.need + ' fluent facts', false, true)
       );
     });
 
@@ -539,7 +595,8 @@
     for (let t = 1; t <= DRAGON_TABLES; t++) {
       const d = dragonDef(t);
       el.zooDragons.appendChild(
-        petTile(d, !!store.animals[d.id], tableFluentCount(t) + '/' + DRAGON_FACTS + ' fluent')
+        petTile(d, !!store.animals[d.id],
+          tableFluentCount(t) + '/' + DRAGON_FACTS + ' fluent', false, true)
       );
     }
   }
@@ -631,7 +688,7 @@
       const f = document.createElement('span');
       f.className = 'flier';
       f.textContent = d.emoji;
-      f.title = d.name;
+      f.title = displayName(d);
       f.style.top = (4 + (i * 13) % 28) + 'px';
       if (lessMotion.matches) {
         f.style.left = (14 + i * 44) + 'px';    // no drifting: just perch them
@@ -795,6 +852,7 @@
       if (!window.confirm('Erase all progress, including every animal you have earned?')) return;
       store.facts = {};
       store.animals = {};
+      store.names = {};
       save(); syncSetup();
     });
   }
@@ -1061,12 +1119,12 @@
     if (fresh.length) {
       fresh.forEach((a) => {
         S.unlocked.push(a);
-        toast(a.emoji + '  ' + a.name + ' earned!');
+        toast(a.emoji + '  ' + displayName(a) + ' earned!');
       });
       /* The new friend hops onto the sideline and everyone welcomes them. */
       renderSquad(fresh.map((a) => a.id));
       cheer(true);
-      speak(fresh.length > 1 ? 'Welcome!' : 'Hi ' + fresh[0].name + '!');
+      speak(fresh.length > 1 ? 'Welcome!' : 'Hi ' + displayName(fresh[0]) + '!');
     }
     updateHud();
   }

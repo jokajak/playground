@@ -232,6 +232,14 @@
   }
   .pet .name{ font-size:.72rem; font-weight:700; margin-top:4px; }
   .pet .need{ font-size:.66rem; color:var(--muted); margin-top:2px; }
+  .pet.renamable{ cursor:pointer; }
+  .pet.renamable:hover{ border-color:var(--accent); }
+  .pet .rename{
+    width:100%; margin-top:4px; padding:2px 4px; text-align:center;
+    font-family:inherit; font-size:.72rem; font-weight:700;
+    color:var(--ink); background:var(--panel);
+    border:1px solid var(--accent); border-radius:6px;
+  }
   .pet.locked{ border-style:dashed; }
   .pet.locked .face{ filter:grayscale(1); opacity:.5; }
   .pet.locked .name{ color:var(--muted); font-weight:600; }
@@ -432,6 +440,7 @@
       <p class="sub" id="zooSummary"></p>
       <p class="sub" id="zooNext"></p>
       <div class="bar" id="zooBarWrap"><span id="zooBar"></span></div>
+      <p class="sub" style="margin-top:10px">Tap an animal you've earned to give it a name.</p>
       <div class="zoo" id="zooCompanions" style="margin-top:14px"></div>
       <p class="sub" style="margin-top:18px">
         <b>Dragon eggs</b> — hatch one by making every fact in a times table fluent.
