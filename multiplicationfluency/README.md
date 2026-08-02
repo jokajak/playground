@@ -65,14 +65,14 @@ and the next reward is shown during the drill and on the summary.
 
 | Fluent facts | Animal | | Fluent facts | Animal |
 |---|---|---|---|---|
-| 1 | 🐰 Bunny | | 45 | 🐶 Puppy |
-| 3 | 🐣 Chick | | 55 | 🐧 Penguin |
-| 6 | 🐹 Hamster | | 66 | 🦦 Otter |
-| 10 | 🐥 Duckling | | 78 | 🦊 Fox cub |
-| 15 | 🐢 Turtle | | 91 | 🐨 Koala |
-| 21 | 🦔 Hedgehog | | 105 | 🐼 Panda |
-| 28 | 🐸 Frog | | 120 | 🦄 Unicorn |
-| 36 | 🐱 Kitten | | | |
+| 1 | 🐣 Chick | | 45 | 🐱 Kitten |
+| 3 | 🐹 Hamster | | 55 | 🐧 Penguin |
+| 6 | 🐥 Duckling | | 66 | 🦦 Otter |
+| 10 | 🐢 Turtle | | 78 | 🦊 Fox cub |
+| 15 | 🐸 Frog | | 91 | 🐨 Koala |
+| 21 | 🐶 Puppy | | 105 | 🐼 Panda |
+| 28 | 🦔 Hedgehog | | 120 | 🦄 Unicorn |
+| 36 | 🐰 Bunny | | | |
 
 **Dragons** are the big prize: one per times table, hatched from a 🥚 egg by
 making all twelve facts in that table fluent (`7×1` through `7×12` gets you the
