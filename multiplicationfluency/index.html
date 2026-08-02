@@ -256,6 +256,64 @@
   .flu span{ display:block; height:100%; width:100%; background:var(--good); }
   .flu span.over{ background:var(--warn); }
 
+  /* ---- dragons in flight ---- */
+  .sky{ position:relative; height:0; overflow:hidden; pointer-events:none; }
+  .sky.on{ height:54px; margin-bottom:14px; }
+  .flier{
+    position:absolute; left:-60px; font-size:1.85rem; line-height:1;
+    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
+    animation-name:fly; animation-timing-function:linear; animation-iteration-count:infinite;
+  }
+  @keyframes fly{
+    0%   { transform:translateX(0) translateY(0) }
+    25%  { transform:translateX(calc(var(--dist) * .25)) translateY(-7px) }
+    50%  { transform:translateX(calc(var(--dist) * .5)) translateY(0) }
+    75%  { transform:translateX(calc(var(--dist) * .75)) translateY(-7px) }
+    100% { transform:translateX(var(--dist)) translateY(0) }
+  }
+  @media (prefers-reduced-motion: reduce){ .flier{ animation:none; } }
+
+  /* ---- cheering squad ---- */
+  .cheer{ display:none; }
+  .cheer.on{ display:flex; }
+  /* Narrow screens: one tidy row inside the panel (JS puts everyone on the left). */
+  .cheer.on{ flex-wrap:wrap; justify-content:center; gap:12px; margin:14px auto 4px; }
+  @media (min-width:1000px){
+    /* Wide screens: two columns flanking the question, out of the layout flow. */
+    .cheer.on{
+      position:fixed; top:50%; transform:translateY(-50%); margin:0;
+      flex-direction:column; flex-wrap:nowrap; gap:18px; z-index:5;
+    }
+    /* main is 680px wide and centred, so this tucks them just outside it. */
+    .cheer.left{ left:calc(50% - 405px); }
+    .cheer.right{ right:calc(50% - 405px); }
+    .cheer .face{ font-size:2.1rem; }
+  }
+  .pal{ position:relative; display:inline-flex; }
+  .pal .face{
+    font-size:1.6rem; line-height:1; display:inline-block;
+    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
+    animation:bob 2.6s ease-in-out infinite;
+  }
+  .pal.cheering .face{ animation:hop .55s ease; }
+  .pal.newbie .face{ animation:hatch .6s ease both; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-4px) } }
+  @keyframes hop{
+    0%{ transform:translateY(0) rotate(0) }
+    30%{ transform:translateY(-14px) rotate(-9deg) scale(1.15) }
+    60%{ transform:translateY(0) rotate(7deg) }
+    100%{ transform:translateY(0) rotate(0) }
+  }
+  .bubble{
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    margin-bottom:4px; background:var(--ink); color:var(--bg);
+    font-size:.62rem; font-weight:700; padding:3px 7px; border-radius:8px;
+    white-space:nowrap; pointer-events:none;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .pal .face, .pal.cheering .face, .pal.newbie .face{ animation:none; }
+  }
+
   #toast{
     position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(70px);
     background:var(--ink); color:var(--bg); font-size:.9rem; font-weight:700;
@@ -288,6 +346,7 @@
 
   <!-- ============ SETUP ============ -->
   <section id="setup">
+    <div class="sky" id="sky" aria-hidden="true"></div>
     <div class="panel">
       <h2>Times tables</h2>
       <div class="chips" id="tableChips"></div>
@@ -414,6 +473,8 @@
       </div>
       <div class="bar"><span id="drillBar"></span></div>
       <p class="reward-line" id="drillReward"></p>
+      <div class="cheer left" id="cheerLeft" aria-hidden="true"></div>
+      <div class="cheer right" id="cheerRight" aria-hidden="true"></div>
 
       <p class="prompt" id="prompt" aria-live="off"></p>
       <div class="flu" id="fluBar" title="Answer before this runs out and it counts as fluent">

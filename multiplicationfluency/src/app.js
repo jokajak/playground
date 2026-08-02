@@ -361,6 +361,7 @@
     seconds: $('seconds'), count: $('count'), optRetry: $('optRetry'), btnStart: $('btnStart'),
     zooSummary: $('zooSummary'), zooNext: $('zooNext'),
     zooBarWrap: $('zooBarWrap'), zooBar: $('zooBar'),
+    cheerLeft: $('cheerLeft'), cheerRight: $('cheerRight'), sky: $('sky'),
     drillReward: $('drillReward'), summaryNext: $('summaryNext'),
     zooCompanions: $('zooCompanions'), zooDragons: $('zooDragons'),
     unlockWrap: $('unlockWrap'), unlockHead: $('unlockHead'), unlockList: $('unlockList'),
@@ -449,6 +450,7 @@
 
     renderProgress(keys);
     renderZoo();
+    renderSky();
   }
 
   function petTile(def, earned, need, fresh) {
@@ -541,6 +543,112 @@
       );
     }
   }
+
+  /* ------------------------------------------------------- cheering squad */
+
+  /* The animals you have earned line the sides of the drill and celebrate
+   * every fluent answer. Decorative only — aria-hidden, and it never reacts
+   * to a miss, so the squad is encouragement and never a scold. */
+  const SQUAD_MAX = 14;           // most recently earned, oldest drop off the sides
+  const SQUAD_MAX_NARROW = 6;     // no room to line the sides: keep the row short
+  const CHEERS = ['Yay!', 'Wow!', 'Zoom!', 'So fast!', 'Nice!', 'Whoa!', 'Go!'];
+  const wideScreen = window.matchMedia('(min-width: 1000px)');
+
+  function allDefs() {
+    const defs = COMPANIONS.slice();
+    for (let t = 1; t <= DRAGON_TABLES; t++) defs.push(dragonDef(t));
+    return defs;
+  }
+
+  function earnedDefs() {
+    return allDefs()
+      .filter((d) => store.animals[d.id])
+      .sort((a, b) => store.animals[b.id] - store.animals[a.id])
+      .slice(0, wideScreen.matches ? SQUAD_MAX : SQUAD_MAX_NARROW);
+  }
+
+  function renderSquad(freshIds) {
+    const fresh = freshIds || [];
+    const pals = earnedDefs();
+    el.cheerLeft.innerHTML = '';
+    el.cheerRight.innerHTML = '';
+
+    pals.forEach((def, i) => {
+      const pal = document.createElement('span');
+      pal.className = 'pal' + (fresh.indexOf(def.id) !== -1 ? ' newbie' : '');
+      pal.dataset.id = def.id;
+      const face = document.createElement('span');
+      face.className = 'face';
+      face.textContent = def.emoji;
+      face.style.animationDelay = (i * 0.18).toFixed(2) + 's';
+      pal.appendChild(face);
+      /* Split across both sides only when there is room to flank the question. */
+      const side = (wideScreen.matches && i % 2) ? el.cheerRight : el.cheerLeft;
+      side.appendChild(pal);
+    });
+
+    const on = pals.length > 0 && !el.drill.hidden;
+    el.cheerLeft.classList.toggle('on', on);
+    el.cheerRight.classList.toggle('on', on && wideScreen.matches);
+  }
+
+  function cheer(big) {
+    const pals = document.querySelectorAll('.pal');
+    if (!pals.length) return;
+    pals.forEach((p, i) => {
+      p.classList.remove('cheering');
+      void p.offsetWidth;
+      setTimeout(() => p.classList.add('cheering'), big ? i * 45 : 0);
+      setTimeout(() => p.classList.remove('cheering'), (big ? i * 45 : 0) + 600);
+    });
+  }
+
+  function speak(text) {
+    const pals = document.querySelectorAll('.pal');
+    if (!pals.length) return;
+    const pal = pals[Math.floor(Math.random() * pals.length)];
+    if (pal.querySelector('.bubble')) return;
+    const b = document.createElement('span');
+    b.className = 'bubble';
+    b.textContent = text;
+    pal.appendChild(b);
+    setTimeout(() => b.remove(), 1600);
+  }
+
+  wideScreen.addEventListener('change', () => renderSquad());
+
+  /* Hatched dragons drift across the top of the setup screen. */
+  const lessMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function renderSky() {
+    const dragons = allDefs().filter((d) => d.dragon && store.animals[d.id]);
+    el.sky.innerHTML = '';
+    el.sky.classList.toggle('on', dragons.length > 0);
+    if (!dragons.length) return;
+
+    const dist = (el.sky.clientWidth || 660) + 120;
+    dragons.forEach((d, i) => {
+      const f = document.createElement('span');
+      f.className = 'flier';
+      f.textContent = d.emoji;
+      f.title = d.name;
+      f.style.top = (4 + (i * 13) % 28) + 'px';
+      if (lessMotion.matches) {
+        f.style.left = (14 + i * 44) + 'px';    // no drifting: just perch them
+      } else {
+        f.style.setProperty('--dist', dist + 'px');
+        f.style.animationDuration = (12 + (i % 4) * 3) + 's';
+        f.style.animationDelay = '-' + (i * 2.5).toFixed(1) + 's';
+      }
+      el.sky.appendChild(f);
+    });
+  }
+
+  let skyTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(skyTimer);
+    skyTimer = setTimeout(() => { if (!el.setup.hidden) renderSky(); }, 200);
+  });
 
   let toastTimer = null;
   function toast(text) {
@@ -741,6 +849,7 @@
     show('drill');
     el.feedback.textContent = '';
     el.feedback.className = 'feedback';
+    renderSquad();
     S.timer = setInterval(tick, 200);
     nextQuestion();
   }
@@ -912,6 +1021,10 @@
         el.feedback.className = 'feedback right';
         el.feedback.textContent = (ms <= SNAP_MS ? 'Snap! ' : 'Fluent — ') + secs;
         el.srStatus.textContent = 'Correct, ' + secs;
+        cheer(ms <= SNAP_MS || S.streak >= 5);
+        if (S.streak >= 3 && S.streak % 3 === 0) {
+          speak(S.streak >= 9 ? S.streak + ' in a row!' : CHEERS[Math.floor(Math.random() * CHEERS.length)]);
+        }
       } else {
         /* Right, but worked out. Say so plainly — this is the whole point. */
         S.streak = 0;
@@ -944,10 +1057,17 @@
       }
     }
 
-    checkUnlocks().forEach((a) => {
-      S.unlocked.push(a);
-      toast(a.emoji + '  ' + a.name + ' earned!');
-    });
+    const fresh = checkUnlocks();
+    if (fresh.length) {
+      fresh.forEach((a) => {
+        S.unlocked.push(a);
+        toast(a.emoji + '  ' + a.name + ' earned!');
+      });
+      /* The new friend hops onto the sideline and everyone welcomes them. */
+      renderSquad(fresh.map((a) => a.id));
+      cheer(true);
+      speak(fresh.length > 1 ? 'Welcome!' : 'Hi ' + fresh[0].name + '!');
+    }
     updateHud();
   }
 
@@ -1004,6 +1124,7 @@
     S = null;
     renderSummary(done);
     show('summary');
+    renderSquad();          // drill is hidden now, so the squad steps off screen
     syncSetup();
   }
 

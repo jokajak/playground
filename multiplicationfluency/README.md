@@ -81,6 +81,19 @@ Dragon of the 7s). Twelve dragons, twenty-seven animals in all.
 Animals are never taken away — if a fact goes stale later, you keep the animal
 it earned. Only **Reset progress** clears them, and it says so before it does.
 
+### They cheer you on
+
+The animals you have earned line the sides of the drill (a single row above the
+question on narrow screens) and bob quietly while you think. Every fluent answer
+makes them hop, a snap-fast answer or a long streak sets off a bigger wave, and
+they pipe up with a "Yay!" every third answer in a streak. A newly earned animal
+hops in mid-session and the others welcome it.
+
+They never react to a miss — the squad is encouragement, never a scold.
+
+Hatched dragons fly across the top of the setup screen, and everything settles
+into a static arrangement if your system asks for reduced motion.
+
 ## How the scheduling works
 
 Each fact (`7 × 8` is tracked separately from `8 × 7`, because recall is
