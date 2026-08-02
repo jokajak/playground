@@ -688,17 +688,27 @@
 
     const dist = (el.sky.clientWidth || 660) + 120;
     dragons.forEach((d, i) => {
+      /* Every other dragon rolls; the rest cruise at more varied heights,
+       * since a loop needs the full height of the sky to stay unclipped. */
+      const rolls = i % 2 === 0;
+
       const f = document.createElement('span');
       f.className = 'flier';
-      f.textContent = d.flyEmoji || d.emoji;
       f.title = displayName(d);
-      f.style.top = (2 + (i * 11) % 18) + 'px';
+      /* Rollers ride mid-band so the top of the loop stays inside the sky. */
+      f.style.top = rolls ? (14 + (i % 3) * 2) + 'px' : (16 + (i * 9) % 24) + 'px';
+
+      const w = document.createElement('span');
+      w.className = 'wing' + (rolls ? (i % 4 === 0 ? ' loopA' : ' loopB') : '');
+      w.textContent = d.flyEmoji || d.emoji;
+      f.appendChild(w);
+
       if (lessMotion.matches) {
         f.style.left = (14 + i * 52) + 'px';    // no drifting: just perch them
       } else {
         f.style.setProperty('--dist', dist + 'px');
-        f.style.animationDuration = (12 + (i % 4) * 3) + 's';
-        f.style.animationDelay = '-' + (i * 2.5).toFixed(1) + 's';
+        f.style.setProperty('--dur', (12 + (i % 4) * 3) + 's');
+        f.style.setProperty('--delay', '-' + (i * 2.5).toFixed(1) + 's');
       }
       el.sky.appendChild(f);
     });

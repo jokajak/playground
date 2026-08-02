@@ -100,8 +100,12 @@ hops in mid-session and the others welcome it.
 
 They never react to a miss — the squad is encouragement, never a scold.
 
-Hatched dragons fly across the top of the setup screen, and everything settles
-into a static arrangement if your system asks for reduced motion.
+Hatched dragons fly across the top of the setup screen, rising and falling with
+a wing-flap tilt, and every other one pulls a full loop-the-loop on the way past
+(at different points, so they don't all roll at once).
+
+Everything settles into a static arrangement if your system asks for reduced
+motion.
 
 ## How the scheduling works
 

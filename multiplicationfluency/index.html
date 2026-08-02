@@ -266,21 +266,34 @@
 
   /* ---- dragons in flight ---- */
   .sky{ position:relative; height:0; overflow:hidden; pointer-events:none; }
-  .sky.on{ height:66px; margin-bottom:14px; }
+  .sky.on{ height:100px; margin-bottom:14px; }
+  /* Travel lives on .flier, the loop-the-loop on .wing, so the roll can pivot
+     around a point below the dragon without fighting the horizontal motion. */
   .flier{
-    position:absolute; left:-70px; font-size:2.4rem; line-height:1;
-    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
+    position:absolute; left:-70px;
     animation-name:fly; animation-timing-function:linear; animation-iteration-count:infinite;
+    animation-duration:var(--dur); animation-delay:var(--delay);
   }
+  .wing{
+    display:inline-block; font-size:2.2rem; line-height:1; transform-origin:50% 108%;
+    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
+    animation-timing-function:linear; animation-iteration-count:infinite;
+    animation-duration:var(--dur); animation-delay:var(--delay);
+  }
+  .wing.loopA{ animation-name:loopA; }
+  .wing.loopB{ animation-name:loopB; }
   /* Rise and fall with a wing-flap tilt on the way. */
   @keyframes fly{
     0%   { transform:translateX(0) translateY(0) rotate(0) }
-    25%  { transform:translateX(calc(var(--dist) * .25)) translateY(-9px) rotate(-7deg) }
+    25%  { transform:translateX(calc(var(--dist) * .25)) translateY(-8px) rotate(-7deg) }
     50%  { transform:translateX(calc(var(--dist) * .5)) translateY(0) rotate(0) }
-    75%  { transform:translateX(calc(var(--dist) * .75)) translateY(-9px) rotate(6deg) }
+    75%  { transform:translateX(calc(var(--dist) * .75)) translateY(-8px) rotate(6deg) }
     100% { transform:translateX(var(--dist)) translateY(0) rotate(0) }
   }
-  @media (prefers-reduced-motion: reduce){ .flier{ animation:none; } }
+  /* One full roll per crossing, at different points along the way. */
+  @keyframes loopA{ 0%,46%{ transform:rotate(0) } 70%,100%{ transform:rotate(360deg) } }
+  @keyframes loopB{ 0%,16%{ transform:rotate(0) } 40%,100%{ transform:rotate(360deg) } }
+  @media (prefers-reduced-motion: reduce){ .flier, .wing{ animation:none; } }
 
   /* ---- cheering squad ---- */
   .cheer{ display:none; }
