@@ -314,29 +314,12 @@
   @keyframes loopB{ 0%,16%{ transform:rotate(0) } 40%,100%{ transform:rotate(360deg) } }
   @media (prefers-reduced-motion: reduce){ .flier, .wing{ animation:none; } }
 
-  /* ---- the dragons themselves are alive ---- */
-  /* Each part pivots about its own joint in viewBox coordinates. */
-  .dwing{ transform-box:view-box; transform-origin:27px 27.5px; animation:flap 1.5s ease-in-out infinite var(--d,0s); }
-  .dtail{ transform-box:view-box; transform-origin:20px 36px;   animation:swish 2.6s ease-in-out infinite var(--d,0s); }
-  .deye{  transform-box:view-box; transform-origin:47.5px 20px; animation:blink 5.5s ease-in-out infinite var(--d,0s); }
-  /* In flight they work for it. */
-  .flier .dwing{ animation-duration:.5s; }
-  .flier .dtail{ animation-duration:1.1s; }
-  @keyframes flap{
-    0%,100%{ transform:rotate(-9deg) }
-    50%    { transform:rotate(15deg) scaleX(.93) }
-  }
-  @keyframes swish{
-    0%,100%{ transform:rotate(-4deg) }
-    50%    { transform:rotate(5deg) }
-  }
-  @keyframes blink{
-    0%,93%,100%{ transform:scaleY(1) }
-    96%        { transform:scaleY(.08) }
-  }
-  @media (prefers-reduced-motion: reduce){
-    .dwing, .dtail, .deye{ animation:none; }
-  }
+  /* ---- drawn dragons ---- */
+  .dragon{ display:block; max-width:none; }
+  /* The artwork is teal; each table's dragon is that hue rotated, applied
+     inline per image. */
+  .face.art img{ display:block; }
+  .wing img{ display:block; }
 
   /* ---- cheering squad ---- */
   .cheer{ display:none; }

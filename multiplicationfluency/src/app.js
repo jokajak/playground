@@ -288,61 +288,26 @@
     };
   }
 
-  function dragonArt(t, w) {
-    const c = palette(t);
-    const S = 'stroke="' + c.dark + '" stroke-width="1.4" stroke-linejoin="round"';
-    const F = 'stroke="' + c.finDk + '" stroke-width="1.1" stroke-linejoin="round"';
-    const B = 'stroke="' + c.bellyLn + '" stroke-width="1.3" stroke-linejoin="round"';
-    const spot = (x, y, r) =>
-      '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + c.light + '" opacity=".8"/>';
-    /* Offsets so a row of dragons never flaps or blinks in lockstep. */
-    const fd = ((t % 5) * 0.11).toFixed(2) + 's';
-    const bd = ((t % 7) * 0.9).toFixed(2) + 's';
-    return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
-      '" aria-hidden="true" focusable="false">' +
-      /* tail, tipped with a blue fin */
-      '<g class="dtail" style="--d:' + fd + '">' +
-      '<path d="M20 38 C10 42 3 36 5.5 27 C6.5 34 12 36 17 32 Z" fill="' + c.body + '" ' + S + '/>' +
-      '<path d="M5.5 27 C1 26 -0.5 21 2 18 C4 21 7 21.5 9 20 C9.5 23.5 8.5 26.5 5.5 27 Z" fill="' + c.fin + '" ' + F + '/>' +
-      '</g>' +
-      /* spinal ridges */
-      '<path d="M12 33 l2.2 -3.6 l2.2 3.6 z" fill="' + c.fin + '" ' + F + '/>' +
-      '<path d="M17 30 l2.4 -4 l2.4 4 z" fill="' + c.fin + '" ' + F + '/>' +
-      '<path d="M33 23.5 l2.5 -4.2 l2.5 4.2 z" fill="' + c.fin + '" ' + F + '/>' +
-      '<ellipse cx="23" cy="45" rx="6" ry="4.6" fill="' + c.dark + '" opacity=".9"/>' +
-      '<ellipse cx="28" cy="35" rx="12.5" ry="10.5" fill="' + c.body + '" ' + S + '/>' +
-      spot(22, 31, 1.3) + spot(27, 29.5, 1.1) +
-      /* striped chest plate */
-      '<ellipse cx="33" cy="39" rx="6" ry="6.4" fill="' + c.belly + '"/>' +
-      '<path d="M28.4 36 h9 M27.6 39.5 h10.6 M28.8 43 h8.6" stroke="' + c.bellyLn +
-      '" stroke-width="1" stroke-linecap="round" opacity=".85"/>' +
-      '<ellipse cx="36" cy="45" rx="5" ry="4" fill="' + c.body + '" ' + S + '/>' +
-      /* wing: warm membrane swept up and back, blue leading edge.
-         Grouped so it can beat about the shoulder joint. */
-      '<g class="dwing" style="--d:' + fd + '">' +
-      '<path d="M27 27.5 C21 20 16 10 20.5 5.5 C26 5 31.5 12.5 35 19.5 C31.5 20.5 33 23 30 23.5 C27.8 24 29 26.5 27 27.5 Z" fill="' + c.belly + '" ' + B + '/>' +
-      '<path d="M27 27.5 C21 20 16 10 20.5 5.5" fill="none" stroke="' + c.finDk + '" stroke-width="2.2" stroke-linecap="round"/>' +
-      '<path d="M20.5 5.5 C24 11 28 16 35 19.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1.1" opacity=".9"/>' +
-      '<path d="M22.5 11 C25 15 27 19 29.5 22.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1" opacity=".6"/>' +
-      '</g>' +
-      /* head */
-      '<circle cx="45" cy="22" r="12" fill="' + c.body + '" ' + S + '/>' +
-      '<ellipse cx="54.5" cy="25.5" rx="5.6" ry="4.2" fill="' + c.body + '" ' + S + '/>' +
-      '<ellipse cx="55" cy="27" rx="3.8" ry="2.2" fill="' + c.light + '" opacity=".7"/>' +
-      '<path d="M39.5 12.5 L40.5 4.5 L45.5 10.5 Z" fill="' + c.horn + '" ' + B + '/>' +
-      '<path d="M48 9.5 L52.5 3.5 L52.5 11 Z" fill="' + c.horn + '" ' + B + '/>' +
-      '<ellipse cx="36" cy="15" rx="3.6" ry="4.2" transform="rotate(-25 36 15)" fill="' + c.fin + '" ' + F + '/>' +
-      '<g class="deye" style="--d:' + bd + '">' +
-      '<circle cx="47.5" cy="20" r="4.6" fill="#fff" stroke="' + c.dark + '" stroke-width="1"/>' +
-      '<circle cx="48.4" cy="20.6" r="2.7" fill="#2b2f36"/>' +
-      '<circle cx="47.1" cy="18.9" r="1.1" fill="#fff"/>' +
-      '<circle cx="49.6" cy="22" r=".6" fill="#fff" opacity=".85"/>' +
-      '</g>' +
-      '<circle cx="58" cy="23.6" r="1" fill="' + c.dark + '"/>' +
-      '<path d="M51 29 C53 31 56 31 58 29.5" fill="none" stroke="' + c.dark + '" stroke-width="1.1" stroke-linecap="round"/>' +
-      '<ellipse cx="41" cy="28" rx="3" ry="1.9" fill="#ff8fa3" opacity=".5"/>' +
-      spot(51, 17, .85) + spot(54, 19, .75) +
-      '</svg>';
+  /* Drawn artwork, one file per times table (art/dragon-01..12.png), each a
+   * front-facing hatchling looking out at you — used on tiles and sidelines.
+   * The side-on flier for the sky exists only in the artwork's own teal, so it
+   * is hue-rotated to sit near its table's colour. */
+  const FRONT = { w: 128, h: 128 };
+  const FLY = { src: 'art/dragon-fly.png', w: 128, h: 100 };
+
+  /* Degrees to turn the teal flier by so it roughly matches each table's
+   * dragon. Index is table - 1. */
+  const FLY_TURN = [157, 25, 310, 207, 87, 337, 150, 5, 285, 70, 5, 0];
+
+  function dragonArt(t, w, pose) {
+    const idx = ((t - 1) % 12 + 12) % 12;
+    const fly = pose === 'fly';
+    const src = fly ? FLY.src : 'art/dragon-' + String(idx + 1).padStart(2, '0') + '.png';
+    const shape = fly ? FLY : FRONT;
+    const turn = fly ? FLY_TURN[idx] : 0;
+    return '<img class="dragon" src="' + src + '" alt="" aria-hidden="true" ' +
+      'width="' + w + '" height="' + Math.round(w * shape.h / shape.w) + '"' +
+      (turn ? ' style="filter:hue-rotate(' + turn + 'deg)"' : '') + '>';
   }
 
   function eggArt(t, w) {
@@ -567,7 +532,7 @@
     face.className = 'face';
     if (def.dragon) {
       face.classList.add('art');
-      face.innerHTML = earned ? dragonArt(def.table, 40) : eggArt(def.table, 34);
+      face.innerHTML = earned ? dragonArt(def.table, 42, 'front') : eggArt(def.table, 34);
     } else {
       face.textContent = def.emoji;
     }
@@ -745,7 +710,7 @@
       face.className = 'face';
       if (def.dragon) {
         face.classList.add('art');
-        face.innerHTML = dragonArt(def.table, wideScreen.matches ? 36 : 28);
+        face.innerHTML = dragonArt(def.table, wideScreen.matches ? 38 : 30, 'front');
       } else {
         face.textContent = def.emoji;
       }
@@ -809,7 +774,7 @@
 
       const w = document.createElement('span');
       w.className = 'wing' + (rolls ? (i % 4 === 0 ? ' loopA' : ' loopB') : '');
-      w.innerHTML = dragonArt(d.table, 42);
+      w.innerHTML = dragonArt(d.table, 46, 'fly');
       f.appendChild(w);
 
       if (lessMotion.matches) {

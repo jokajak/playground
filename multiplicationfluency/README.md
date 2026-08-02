@@ -182,17 +182,23 @@ answers; **Drill my weakest 15 facts** runs a session over just those.
 
 ## Artwork
 
-The twelve baby dragons (and their eggs) are original vector drawings, written
-as inline SVG in `src/app.js` and tinted per times table — no image files, no
-external requests, and they stay sharp from the 28px sideline to the 42px sky.
-The companions are plain Unicode emoji, so they render in whatever style the
-reader's platform ships.
+The dragons in `art/` are commissioned artwork owned by this project, generated
+to order and licensed with the rest of the repository. There is one front-facing
+hatchling per times table (`dragon-01.png` … `dragon-12.png`), used on the
+menagerie tiles and the sidelines where they look out at you, plus a single
+side-on flier (`dragon-fly.png`) for the sky, hue-rotated per table to sit near
+its dragon's colour. Each sprite is trimmed to the artwork, reduced to 128px
+wide — three times its largest on-screen size, so it stays sharp on retina — and
+palette-compressed; the whole set is around 100KB.
 
-No third-party artwork is bundled. That is deliberate: the obvious sources for
-cute dragon art are usually licensed **CC BY-NC-ND**, whose NonCommercial term
-conflicts with this utility's Apache-2.0 licence and whose NoDerivatives term
-rules out recolouring or animating the art at all. Drawing our own sidesteps
-both, and keeps every pixel redistributable under the same licence as the code.
+The eggs are still inline SVG, and the companions are plain Unicode emoji, so
+they render in whatever style the reader's platform ships.
+
+No third-party artwork is bundled. That matters more than it sounds: the obvious
+sources for cute dragon art are usually licensed **CC BY-NC-ND**, whose
+NonCommercial term conflicts with this utility's Apache-2.0 licence and whose
+NoDerivatives term would rule out the recolouring and cropping done here.
+Owning the art outright avoids both.
 
 ## License
 
