@@ -295,11 +295,16 @@
     const B = 'stroke="' + c.bellyLn + '" stroke-width="1.3" stroke-linejoin="round"';
     const spot = (x, y, r) =>
       '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + c.light + '" opacity=".8"/>';
+    /* Offsets so a row of dragons never flaps or blinks in lockstep. */
+    const fd = ((t % 5) * 0.11).toFixed(2) + 's';
+    const bd = ((t % 7) * 0.9).toFixed(2) + 's';
     return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
       '" aria-hidden="true" focusable="false">' +
       /* tail, tipped with a blue fin */
+      '<g class="dtail" style="--d:' + fd + '">' +
       '<path d="M20 38 C10 42 3 36 5.5 27 C6.5 34 12 36 17 32 Z" fill="' + c.body + '" ' + S + '/>' +
       '<path d="M5.5 27 C1 26 -0.5 21 2 18 C4 21 7 21.5 9 20 C9.5 23.5 8.5 26.5 5.5 27 Z" fill="' + c.fin + '" ' + F + '/>' +
+      '</g>' +
       /* spinal ridges */
       '<path d="M12 33 l2.2 -3.6 l2.2 3.6 z" fill="' + c.fin + '" ' + F + '/>' +
       '<path d="M17 30 l2.4 -4 l2.4 4 z" fill="' + c.fin + '" ' + F + '/>' +
@@ -312,11 +317,14 @@
       '<path d="M28.4 36 h9 M27.6 39.5 h10.6 M28.8 43 h8.6" stroke="' + c.bellyLn +
       '" stroke-width="1" stroke-linecap="round" opacity=".85"/>' +
       '<ellipse cx="36" cy="45" rx="5" ry="4" fill="' + c.body + '" ' + S + '/>' +
-      /* wing: warm membrane swept up and back, blue leading edge */
+      /* wing: warm membrane swept up and back, blue leading edge.
+         Grouped so it can beat about the shoulder joint. */
+      '<g class="dwing" style="--d:' + fd + '">' +
       '<path d="M27 27.5 C21 20 16 10 20.5 5.5 C26 5 31.5 12.5 35 19.5 C31.5 20.5 33 23 30 23.5 C27.8 24 29 26.5 27 27.5 Z" fill="' + c.belly + '" ' + B + '/>' +
       '<path d="M27 27.5 C21 20 16 10 20.5 5.5" fill="none" stroke="' + c.finDk + '" stroke-width="2.2" stroke-linecap="round"/>' +
       '<path d="M20.5 5.5 C24 11 28 16 35 19.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1.1" opacity=".9"/>' +
       '<path d="M22.5 11 C25 15 27 19 29.5 22.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1" opacity=".6"/>' +
+      '</g>' +
       /* head */
       '<circle cx="45" cy="22" r="12" fill="' + c.body + '" ' + S + '/>' +
       '<ellipse cx="54.5" cy="25.5" rx="5.6" ry="4.2" fill="' + c.body + '" ' + S + '/>' +
@@ -324,10 +332,12 @@
       '<path d="M39.5 12.5 L40.5 4.5 L45.5 10.5 Z" fill="' + c.horn + '" ' + B + '/>' +
       '<path d="M48 9.5 L52.5 3.5 L52.5 11 Z" fill="' + c.horn + '" ' + B + '/>' +
       '<ellipse cx="36" cy="15" rx="3.6" ry="4.2" transform="rotate(-25 36 15)" fill="' + c.fin + '" ' + F + '/>' +
+      '<g class="deye" style="--d:' + bd + '">' +
       '<circle cx="47.5" cy="20" r="4.6" fill="#fff" stroke="' + c.dark + '" stroke-width="1"/>' +
       '<circle cx="48.4" cy="20.6" r="2.7" fill="#2b2f36"/>' +
       '<circle cx="47.1" cy="18.9" r="1.1" fill="#fff"/>' +
       '<circle cx="49.6" cy="22" r=".6" fill="#fff" opacity=".85"/>' +
+      '</g>' +
       '<circle cx="58" cy="23.6" r="1" fill="' + c.dark + '"/>' +
       '<path d="M51 29 C53 31 56 31 58 29.5" fill="none" stroke="' + c.dark + '" stroke-width="1.1" stroke-linecap="round"/>' +
       '<ellipse cx="41" cy="28" rx="3" ry="1.9" fill="#ff8fa3" opacity=".5"/>' +

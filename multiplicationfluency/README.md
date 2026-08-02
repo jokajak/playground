@@ -121,6 +121,12 @@ Hatched dragons fly across the top of the setup screen, rising and falling with
 a wing-flap tilt, and every other one pulls a full loop-the-loop on the way past
 (at different points, so they don't all roll at once).
 
+The dragons are animated in themselves, too, not just moved about: the wing
+beats about its shoulder joint, the tail swishes, and they blink. Dragons in
+flight beat roughly three times faster than the ones resting in the menagerie
+or on the sidelines, and the timings are offset per dragon so a row of them
+never moves in lockstep.
+
 Everything settles into a static arrangement if your system asks for reduced
 motion.
 
