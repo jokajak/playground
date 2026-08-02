@@ -230,6 +230,9 @@
     font-size:1.9rem; line-height:1.2;
     font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
   }
+  /* Hand-drawn dragons are SVG rather than a glyph. */
+  .face.art{ line-height:0; }
+  .face.art svg{ display:inline-block; vertical-align:middle; }
   .pet .name{ font-size:.72rem; font-weight:700; margin-top:4px; }
   .pet .need{ font-size:.66rem; color:var(--muted); margin-top:2px; }
   .pet.renamable{ cursor:pointer; }
@@ -275,11 +278,11 @@
     animation-duration:var(--dur); animation-delay:var(--delay);
   }
   .wing{
-    display:inline-block; font-size:2.2rem; line-height:1; transform-origin:50% 108%;
-    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif;
+    display:inline-block; line-height:0; transform-origin:50% 108%;
     animation-timing-function:linear; animation-iteration-count:infinite;
     animation-duration:var(--dur); animation-delay:var(--delay);
   }
+  .wing svg{ display:block; }
   .wing.loopA{ animation-name:loopA; }
   .wing.loopB{ animation-name:loopB; }
   /* Rise and fall with a wing-flap tilt on the way. */

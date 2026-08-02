@@ -262,6 +262,70 @@
     name: 'Dragon of the ' + t + 's', table: t, dragon: true,
   });
 
+  /* ------------------------------------------------------------ dragon art */
+
+  /* Original artwork, drawn here rather than borrowed: one chubby hatchling per
+   * times table, tinted by hue. Inline SVG keeps the page self-contained and
+   * scales cleanly from the 26px sideline to the 44px sky. */
+  const HUES = [140, 205, 275, 330, 22, 48, 95, 175, 240, 300, 8, 62];
+
+  function palette(t) {
+    const h = HUES[(t - 1) % HUES.length];
+    return {
+      body: 'hsl(' + h + ' 62% 56%)',
+      dark: 'hsl(' + h + ' 55% 36%)',
+      belly: 'hsl(' + ((h + 14) % 360) + ' 72% 88%)',
+      wing: 'hsl(' + ((h + 10) % 360) + ' 62% 76%)',
+      horn: '#ffe9b5',
+    };
+  }
+
+  function dragonArt(t, w) {
+    const c = palette(t);
+    const S = 'stroke="' + c.dark + '" stroke-width="1.4" stroke-linejoin="round"';
+    return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
+      '" aria-hidden="true" focusable="false">' +
+      '<path d="M20 38 C10 42 3 36 5.5 27 C6.5 34 12 36 17 32 Z" fill="' + c.body + '" ' + S + '/>' +
+      '<path d="M5.5 27 C1 26 -0.5 21 2 18 C4 21 7 21.5 9 20 C9.5 23.5 8.5 26.5 5.5 27 Z" fill="' + c.wing + '" ' + S + '/>' +
+      '<path d="M24 22 l3 -5 l3 5 z" fill="' + c.horn + '"/>' +
+      '<path d="M30 20 l3 -5 l3 5 z" fill="' + c.horn + '"/>' +
+      '<ellipse cx="23" cy="45" rx="6" ry="4.6" fill="' + c.dark + '"/>' +
+      '<ellipse cx="28" cy="35" rx="12.5" ry="10.5" fill="' + c.body + '" ' + S + '/>' +
+      '<ellipse cx="30" cy="38.5" rx="8.5" ry="6.2" fill="' + c.belly + '"/>' +
+      '<ellipse cx="36" cy="45" rx="5" ry="4" fill="' + c.body + '" ' + S + '/>' +
+      '<path d="M24 28 C21 16 26 6 33 7 C33 12 33.5 17 35 21 C32 21.5 33.5 24.5 30 24.5 C27.5 24.5 28.5 27.5 24 28 Z" fill="' + c.wing + '" ' + S + '/>' +
+      '<path d="M33 7 C33.5 13 34 17 35 21" fill="none" stroke="' + c.dark + '" stroke-opacity=".45" stroke-width="1.1"/>' +
+      '<path d="M28 9.5 C28.5 15 28.5 20 27.5 25.5" fill="none" stroke="' + c.dark + '" stroke-opacity=".3" stroke-width="1"/>' +
+      '<circle cx="45" cy="22" r="12" fill="' + c.body + '" ' + S + '/>' +
+      '<ellipse cx="54.5" cy="25.5" rx="5.6" ry="4.2" fill="' + c.body + '" ' + S + '/>' +
+      '<ellipse cx="55" cy="27" rx="3.8" ry="2.2" fill="' + c.belly + '"/>' +
+      '<path d="M39.5 12.5 L40.5 4.5 L45.5 10.5 Z" fill="' + c.horn + '" ' + S + '/>' +
+      '<path d="M48 9.5 L52.5 3.5 L52.5 11 Z" fill="' + c.horn + '" ' + S + '/>' +
+      '<ellipse cx="36" cy="15" rx="3.6" ry="4.2" transform="rotate(-25 36 15)" fill="' + c.wing + '" ' + S + '/>' +
+      '<circle cx="47.5" cy="20" r="4.6" fill="#fff" stroke="' + c.dark + '" stroke-width="1"/>' +
+      '<circle cx="48.4" cy="20.6" r="2.7" fill="#23252b"/>' +
+      '<circle cx="47.1" cy="18.9" r="1.1" fill="#fff"/>' +
+      '<circle cx="49.6" cy="22" r=".6" fill="#fff" opacity=".8"/>' +
+      '<circle cx="58" cy="23.6" r="1" fill="' + c.dark + '"/>' +
+      '<path d="M51 29 C53 31 56 31 58 29.5" fill="none" stroke="' + c.dark + '" stroke-width="1.1" stroke-linecap="round"/>' +
+      '<ellipse cx="41" cy="28" rx="3" ry="1.9" fill="#ff7a90" opacity=".45"/>' +
+      '</svg>';
+  }
+
+  function eggArt(t, w) {
+    const c = palette(t);
+    const spot = (cx, cy, rx, ry, o) =>
+      '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry +
+      '" fill="' + c.wing + '" opacity="' + o + '"/>';
+    return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
+      '" aria-hidden="true" focusable="false">' +
+      '<path d="M33 8 C44 8 52 24 52 34 C52 45 43 51 33 51 C23 51 14 45 14 34 C14 24 22 8 33 8 Z" ' +
+      'fill="#f4f1ea" stroke="#cfc7b6" stroke-width="1.6"/>' +
+      spot(26, 28, 3.4, 2.6, .85) + spot(39, 36, 4, 3, .7) + spot(33, 19, 2.6, 2, .6) +
+      spot(42, 24, 2.2, 1.7, .5) + spot(24, 41, 2.6, 2, .6) +
+      '</svg>';
+  }
+
   const MAX_NAME = 18;
   /* What to call an animal: whatever you named it, else its species. */
   const displayName = (def) => store.names[def.id] || def.name;
@@ -466,7 +530,12 @@
     d.className = 'pet ' + (earned ? 'earned' : 'locked') + (fresh ? ' fresh' : '');
     const face = document.createElement('div');
     face.className = 'face';
-    face.textContent = earned ? def.emoji : (def.dragon ? '🥚' : def.emoji);
+    if (def.dragon) {
+      face.classList.add('art');
+      face.innerHTML = earned ? dragonArt(def.table, 40) : eggArt(def.table, 34);
+    } else {
+      face.textContent = def.emoji;
+    }
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = earned ? displayName(def) : def.name;
@@ -639,7 +708,12 @@
       pal.dataset.id = def.id;
       const face = document.createElement('span');
       face.className = 'face';
-      face.textContent = def.emoji;
+      if (def.dragon) {
+        face.classList.add('art');
+        face.innerHTML = dragonArt(def.table, wideScreen.matches ? 36 : 28);
+      } else {
+        face.textContent = def.emoji;
+      }
       face.style.setProperty('--bob', (i * 0.18).toFixed(2) + 's');
       pal.appendChild(face);
       /* Split across both sides only when there is room to flank the question. */
@@ -700,7 +774,7 @@
 
       const w = document.createElement('span');
       w.className = 'wing' + (rolls ? (i % 4 === 0 ? ' loopA' : ' loopB') : '');
-      w.textContent = d.flyEmoji || d.emoji;
+      w.innerHTML = dragonArt(d.table, 42);
       f.appendChild(w);
 
       if (lessMotion.matches) {

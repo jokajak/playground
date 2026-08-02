@@ -74,9 +74,12 @@ and the next reward is shown during the drill and on the summary.
 | 28 | 🦔 Hedgehog | | 120 | 🦄 Unicorn |
 | 36 | 🐱 Kitten | | | |
 
-**Dragons** are the big prize: one per times table, hatched from a 🥚 egg by
-making all twelve facts in that table fluent (`7×1` through `7×12` gets you the
-Dragon of the 7s). Twelve dragons, twenty-seven animals in all.
+**Dragons** are the big prize: one per times table, hatched from a speckled egg
+by making all twelve facts in that table fluent (`7×1` through `7×12` gets you
+the Dragon of the 7s). Twelve dragons, twenty-seven animals in all.
+
+Each dragon is a chubby hatchling drawn as inline SVG in its own colour — see
+[Artwork](#artwork) below.
 
 Animals are never taken away — if a fact goes stale later, you keep the animal
 it earned. Only **Reset progress** clears them, and it says so before it does.
@@ -157,6 +160,20 @@ answers; **Drill my weakest 15 facts** runs a session over just those.
 - The colour theme follows your system setting, with a manual toggle in the
   header.
 
+## Artwork
+
+The twelve baby dragons (and their eggs) are original vector drawings, written
+as inline SVG in `src/app.js` and tinted per times table — no image files, no
+external requests, and they stay sharp from the 28px sideline to the 42px sky.
+The companions are plain Unicode emoji, so they render in whatever style the
+reader's platform ships.
+
+No third-party artwork is bundled. That is deliberate: the obvious sources for
+cute dragon art are usually licensed **CC BY-NC-ND**, whose NonCommercial term
+conflicts with this utility's Apache-2.0 licence and whose NoDerivatives term
+rules out recolouring or animating the art at all. Drawing our own sidesteps
+both, and keeps every pixel redistributable under the same licence as the code.
+
 ## License
 
-Apache-2.0 (see [LICENSE](LICENSE)).
+Apache-2.0 (see [LICENSE](LICENSE)), artwork included.
