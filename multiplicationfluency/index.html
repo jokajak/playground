@@ -156,6 +156,16 @@
   @keyframes blink{ 50%{ opacity:0 } }
   @media (prefers-reduced-motion: reduce){ .caret{ animation:none } .bar span{ transition:none } }
 
+  /* Fixed-length countdown to the hands-free submit. Identical for every
+     question, so it reveals nothing about the answer. */
+  .autobar{ width:min(320px,100%); height:4px; margin:8px auto 0; border-radius:99px; overflow:hidden; }
+  .autobar span{ display:block; height:100%; width:0; background:var(--muted); opacity:.45; }
+  .autobar span.run{ animation:autofill var(--auto,1000ms) linear forwards; }
+  @keyframes autofill{ from{ width:0 } to{ width:100% } }
+  @media (prefers-reduced-motion: reduce){ .autobar span.run{ animation-duration:var(--auto,1000ms) } }
+
+  .answer{ cursor:pointer; }
+
   .feedback{ margin-top:14px; text-align:center; font-size:.95rem; min-height:1.5em; color:var(--muted); }
   .feedback.right{ color:var(--good); font-weight:600; }
   .feedback.wrong{ color:var(--bad); font-weight:600; }
@@ -167,7 +177,13 @@
     background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
   }
   .keypad button:active{ transform:translateY(1px); }
-  .keypad .enter{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .keypad .enter{
+    background:var(--accent); border-color:var(--accent); color:#fff;
+    font-size:1.05rem; letter-spacing:.06em;
+  }
+  /* Nudge the shortcut once there is something to submit, without ever
+     implying anything about the answer itself. */
+  .keypad.armed .enter{ box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
   /* Guarded: a tapped key keeps :hover on touch screens, which would otherwise
      leave the enter key white-on-white. */
   @media (hover: hover){
@@ -447,12 +463,17 @@
         </div>
       </div>
       <div class="row">
+        <label class="opt"><input type="checkbox" id="optAuto" checked> Answer hands-free — submits a moment after you stop typing</label>
+      </div>
+      <div class="row">
         <label class="opt"><input type="checkbox" id="optRetry" checked> Retype the answer after a miss</label>
       </div>
       <button class="primary" id="btnStart">Start</button>
       <p class="sub" style="text-align:center;margin-top:10px">
-        Type with the keyboard or the on-screen keypad. <b>Enter</b> to answer.<br>
+        Just type the answer — no need to press anything. <b>GO</b>, <b>Enter</b> or
+        <b>space</b> submits straight away if you'd rather not wait.<br>
         Beat the green bar — answers under <b>3 seconds</b> are what build fluency.
+        The wait after you stop typing is never counted against you.
       </p>
     </div>
 
@@ -511,6 +532,7 @@
         <span id="fluFill"></span>
       </div>
       <div class="answer empty" id="answer" aria-hidden="true">?</div>
+      <div class="autobar"><span id="autoFill"></span></div>
       <p class="sr-only" aria-live="assertive" id="srStatus"></p>
       <p class="feedback" id="feedback" aria-live="polite"></p>
 
@@ -520,7 +542,7 @@
         <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
         <button data-key="back" aria-label="Backspace">&#9003;</button>
         <button data-key="0">0</button>
-        <button data-key="enter" class="enter" aria-label="Submit answer">&#9166;</button>
+        <button data-key="enter" class="enter" aria-label="Submit answer">GO</button>
       </div>
 
       <div class="drill-foot">

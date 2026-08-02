@@ -25,6 +25,10 @@
   const FLUENT_MS = 3000;    // the fluency bar; slower correct answers -> "hard"
   const FLUENT_STREAK = 3;   // quick answers in a row before a fact counts fluent
 
+  /* Hands-free answering. The delay is a fixed quiet period — it never depends
+   * on the answer, so it gives away nothing about how many digits to type. */
+  const AUTO_SUBMIT_MS = 1000;
+
   /* Scheduler knobs (SM-2 with Anki-ish learning steps). */
   const START_EASE = 2.5;
   const MIN_EASE = 1.3;
@@ -46,6 +50,7 @@
     seconds: 60,
     count: 20,
     retry: true,
+    auto: true,
   });
 
   let store = { v: 1, facts: {}, prefs: defaultPrefs(), animals: {}, names: {} };
@@ -448,7 +453,8 @@
     pickSeg: $('pickSeg'), newField: $('newField'), newLimit: $('newLimit'),
     pickHelp: $('pickHelp'), dueLine: $('dueLine'),
     modeSeg: $('modeSeg'), sprintField: $('sprintField'), setField: $('setField'),
-    seconds: $('seconds'), count: $('count'), optRetry: $('optRetry'), btnStart: $('btnStart'),
+    seconds: $('seconds'), count: $('count'), optRetry: $('optRetry'), optAuto: $('optAuto'),
+    autoFill: $('autoFill'), btnStart: $('btnStart'),
     zooSummary: $('zooSummary'), zooNext: $('zooNext'),
     zooBarWrap: $('zooBarWrap'), zooBar: $('zooBar'),
     cheerLeft: $('cheerLeft'), cheerRight: $('cheerRight'), sky: $('sky'),
@@ -504,6 +510,7 @@
     el.seconds.value = String(p.seconds);
     el.count.value = String(p.count);
     el.optRetry.checked = !!p.retry;
+    el.optAuto.checked = !!p.auto;
 
     Array.from(el.pickSeg.children).forEach((b) => {
       b.setAttribute('aria-pressed', b.dataset.pick === p.pick ? 'true' : 'false');
@@ -938,6 +945,7 @@
     el.seconds.addEventListener('change', () => { store.prefs.seconds = Number(el.seconds.value); save(); });
     el.count.addEventListener('change', () => { store.prefs.count = Number(el.count.value); save(); });
     el.optRetry.addEventListener('change', () => { store.prefs.retry = el.optRetry.checked; save(); });
+    el.optAuto.addEventListener('change', () => { store.prefs.auto = el.optAuto.checked; save(); });
 
     el.pickSeg.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-pick]');
@@ -1004,6 +1012,8 @@
       newlyFluent: 0,
       current: null,
       typed: '',
+      typedAt: 0,             // when the last digit landed — the real answer time
+      autoTimer: null,
       phase: 'idle',          // idle | answering | retry | between
       last: null,
       timer: null,
@@ -1059,7 +1069,9 @@
     };
     S.last = k;
     S.typed = '';
+    S.typedAt = 0;
     S.phase = 'answering';
+    cancelAuto();
     el.prompt.innerHTML = a + ' <span class="op">&times;</span> ' + b;
     el.prompt.setAttribute('aria-label', a + ' times ' + b);
     el.srStatus.textContent = a + ' times ' + b;
@@ -1080,11 +1092,12 @@
     f.style.width = '0%';
   }
 
-  function freezeFluencyBar(quick) {
+  /* Frozen at the elapsed time of the *answer*, so a pause before submitting
+   * doesn't visibly drain a bar that isn't actually running against you. */
+  function freezeFluencyBar(quick, ms) {
     const f = el.fluFill;
-    const w = getComputedStyle(f).width;
     f.style.transition = 'none';
-    f.style.width = w;
+    f.style.width = Math.max(0, (1 - ms / FLUENT_MS) * 100).toFixed(1) + '%';
     f.classList.toggle('over', !quick);
   }
 
@@ -1098,6 +1111,7 @@
       box.classList.remove('empty');
       box.textContent = S.typed;
     }
+    el.keypad.classList.toggle('armed', S.typed !== '');
   }
 
   function updateHud() {
@@ -1133,26 +1147,56 @@
     if (S.typed.length >= 4) return;
     if (S.typed === '0') S.typed = '';
     S.typed += d;
+    noteInput();
     paintAnswer();
   }
 
   function backspace() {
     if (S.phase !== 'answering' && S.phase !== 'retry') return;
     S.typed = S.typed.slice(0, -1);
+    noteInput();
     paintAnswer();
   }
 
+  /* The answer is "in" the moment the last digit lands. Everything after that —
+   * reaching for a key, waiting out the auto-submit pause — is not thinking
+   * time and must not count against fluency. */
+  function noteInput() {
+    S.typedAt = performance.now();
+    scheduleAuto();
+  }
+
+  function scheduleAuto() {
+    clearTimeout(S.autoTimer);
+    const armed = store.prefs.auto && S.typed !== '' &&
+      (S.phase === 'answering' || S.phase === 'retry');
+    el.autoFill.classList.remove('run');
+    if (!armed) return;
+    void el.autoFill.offsetWidth;               // restart the countdown bar
+    el.autoFill.classList.add('run');
+    S.autoTimer = setTimeout(() => {
+      if (S && (S.phase === 'answering' || S.phase === 'retry')) submit();
+    }, AUTO_SUBMIT_MS);
+  }
+
+  function cancelAuto() {
+    if (S) clearTimeout(S.autoTimer);
+    el.autoFill.classList.remove('run');
+  }
+
   function submit() {
+    cancelAuto();
     if (S.phase === 'retry') return submitRetry();
     if (S.phase !== 'answering' || S.typed === '') return;
 
-    const ms = Math.round(performance.now() - S.current.shownAt);
+    /* Timed to the last keystroke, not to this moment. */
+    const ms = Math.round((S.typedAt || performance.now()) - S.current.shownAt);
     const given = Number(S.typed);
     const right = given === S.current.answer;
     const fact = S.current.a + ' × ' + S.current.b + ' = ' + S.current.answer;
 
     const quick = right && isQuick(ms);
-    freezeFluencyBar(quick);
+    freezeFluencyBar(quick, ms);
 
     const prev = getRecord(S.current.k);
     const wasLearning = !prev || !prev.seen || prev.learning;
@@ -1267,12 +1311,14 @@
     });
 
     el.btnQuit.addEventListener('click', () => endSession());
+    /* The answer box is a submit target too — it's the thing they're looking at. */
+    el.answer.addEventListener('click', () => { if (S) submit(); });
 
     document.addEventListener('keydown', (e) => {
       if (el.drill.hidden || !S) return;
       if (e.key >= '0' && e.key <= '9') { typeDigit(e.key); e.preventDefault(); }
       else if (e.key === 'Backspace') { backspace(); e.preventDefault(); }
-      else if (e.key === 'Enter' || e.key === '=') { submit(); e.preventDefault(); }
+      else if (e.key === 'Enter' || e.key === '=' || e.key === ' ') { submit(); e.preventDefault(); }
       else if (e.key === 'Escape') { endSession(); e.preventDefault(); }
     });
   }
@@ -1281,6 +1327,7 @@
 
   function endSession() {
     if (!S) return;
+    cancelAuto();
     clearInterval(S.timer);
     S.phase = 'done';
     const done = S;
@@ -1404,6 +1451,8 @@
   /* -------------------------------------------------------------------- boot */
 
   load();
+  /* Keep the countdown bar and the timer that fires it in lockstep. */
+  document.documentElement.style.setProperty('--auto', AUTO_SUBMIT_MS + 'ms');
   checkUnlocks();          // catch up anything earned by an older build
   buildFactorControls();
   wireSetup();

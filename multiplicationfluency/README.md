@@ -30,8 +30,11 @@ python3 -m http.server 8000
    random questions over everything selected.
 3. Pick a **session length**: a timed sprint, a fixed number of questions, or
    endless until you stop.
-4. Answer with the keyboard or the on-screen keypad. **Enter** submits,
-   **Backspace** deletes, **Esc** ends the session.
+4. Answer with the keyboard or the on-screen keypad. **Just type** — the answer
+   goes in on its own a moment after you stop, so you never have to hunt for a
+   submit key. **GO**, **Enter** or **space** submits immediately if you'd
+   rather not wait, as does tapping the answer box. **Backspace** deletes and
+   **Esc** ends the session.
 5. Beat the green bar under each question — it drains over three seconds, and
    answering before it empties is what counts as a fluent answer.
 6. The summary leads with how many answers were fluent, then accuracy, median
@@ -50,6 +53,17 @@ Every answer is timed, and the timing decides what happens next:
 
 Because slow answers shrink the interval instead of growing it, you cannot
 grind your way to mastery by working answers out — only by knowing them.
+
+**The clock stops on your last keystroke, not when the answer is submitted.**
+Reaching for a key, or waiting out the hands-free pause, is not thinking time
+and is never counted against you — so the timing measures recall, not dexterity.
+
+Hands-free submitting deliberately gives nothing away: the quiet period is the
+same fixed length for every question, so it never hints at how many digits the
+answer has. (Auto-submitting *when the digit count matches* would do exactly
+that, which is why it doesn't work that way.) If someone pauses mid-number long
+enough to submit early, turn **Answer hands-free** off in the session settings
+and answers wait for a key press.
 
 A fact is **fluent** once it is out of the learning phase and has been answered
 correctly and quickly **three times in a row** (with its running average still
