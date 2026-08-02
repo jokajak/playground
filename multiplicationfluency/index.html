@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Multiplication Fluency</title>
+<script>(function(){
+  try{
+    var t=localStorage.getItem('mf-theme');
+    if(t==='light'||t==='dark') document.documentElement.setAttribute('data-theme',t);
+  }catch(e){}
+})();</script>
+<style>
+  :root{
+    --bg:#f3f4f6; --panel:#ffffff; --panel-2:#f9fafb;
+    --ink:#111827; --muted:#6b7280; --accent:#1d4ed8; --border:#e5e7eb;
+    --good:#15803d; --good-bg:#dcfce7;
+    --bad:#b91c1c;  --bad-bg:#fee2e2;
+    --warn:#b45309; --warn-bg:#fef3c7;
+    --hover:#f3f4f6;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#111317; --panel:#191c21; --panel-2:#20242b;
+      --ink:#e8eaed; --muted:#9aa1ab; --accent:#60a5fa; --border:#2a2f37;
+      --good:#4ade80; --good-bg:#14311f;
+      --bad:#f87171;  --bad-bg:#3a1518;
+      --warn:#fbbf24; --warn-bg:#3a2b0c;
+      --hover:#242932;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f4f6; --panel:#ffffff; --panel-2:#f9fafb;
+    --ink:#111827; --muted:#6b7280; --accent:#1d4ed8; --border:#e5e7eb;
+    --good:#15803d; --good-bg:#dcfce7;
+    --bad:#b91c1c;  --bad-bg:#fee2e2;
+    --warn:#b45309; --warn-bg:#fef3c7;
+    --hover:#f3f4f6;
+  }
+  :root[data-theme="dark"]{
+    --bg:#111317; --panel:#191c21; --panel-2:#20242b;
+    --ink:#e8eaed; --muted:#9aa1ab; --accent:#60a5fa; --border:#2a2f37;
+    --good:#4ade80; --good-bg:#14311f;
+    --bad:#f87171;  --bad-bg:#3a1518;
+    --warn:#fbbf24; --warn-bg:#3a2b0c;
+    --hover:#242932;
+  }
+
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  [hidden]{ display:none !important; }
+
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100vh; display:flex; justify-content:center;
+    padding:32px 16px 56px;
+  }
+  main{ width:100%; max-width:680px; }
+
+  header{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px; }
+  .back{ display:inline-block; margin-bottom:14px; color:var(--muted); font-size:.85rem; text-decoration:none; }
+  .back:hover{ color:var(--accent); }
+  h1{ font-size:1.6rem; }
+  .tagline{ color:var(--muted); font-size:.92rem; margin-top:6px; }
+
+  button{ font-family:inherit; color:inherit; cursor:pointer; touch-action:manipulation; }
+  button:focus-visible, input:focus-visible, select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  #btnTheme{
+    flex:none; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--border); border-radius:9px; background:var(--panel); padding:0;
+  }
+  #btnTheme:hover{ background:var(--hover); }
+  #btnTheme svg{ width:17px; height:17px; }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:20px 22px; box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  .panel + .panel{ margin-top:18px; }
+
+  .legend-title, h2{
+    font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); margin-bottom:12px;
+  }
+  .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .row + .row{ margin-top:14px; }
+  .sub{ font-size:.8rem; color:var(--muted); }
+  .sub + .sub{ margin-top:6px; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    min-width:44px; padding:9px 12px; font-size:.95rem; font-weight:600;
+    border:1px solid var(--border); border-radius:9px; background:var(--panel-2);
+    color:var(--muted); transition:background .12s,border-color .12s,color .12s;
+  }
+  .chip:hover{ background:var(--hover); }
+  .chip[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .mini{
+    padding:6px 10px; font-size:.78rem; font-weight:600; color:var(--muted);
+    border:1px solid var(--border); border-radius:8px; background:var(--panel-2);
+  }
+  .mini:hover{ background:var(--hover); color:var(--ink); }
+  .mini:disabled{ opacity:.45; cursor:not-allowed; }
+  .mini:disabled:hover{ background:var(--panel-2); color:var(--muted); }
+
+  .seg{ display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+  .seg button{
+    padding:9px 14px; font-size:.88rem; font-weight:600; background:var(--panel-2);
+    color:var(--muted); border:0; border-right:1px solid var(--border);
+  }
+  .seg button:last-child{ border-right:0; }
+  .seg button[aria-pressed="true"]{ background:var(--accent); color:#fff; }
+
+  label.opt{ display:flex; align-items:center; gap:8px; font-size:.88rem; color:var(--ink); }
+  label.opt input{ width:16px; height:16px; accent-color:var(--accent); }
+  .field{ display:flex; align-items:center; gap:8px; font-size:.88rem; color:var(--muted); }
+  select{
+    font-family:inherit; font-size:.88rem; padding:8px 10px; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+  }
+
+  .primary{
+    width:100%; margin-top:20px; padding:15px; font-size:1.05rem; font-weight:700;
+    background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:10px;
+  }
+  .primary:hover{ filter:brightness(1.08); }
+  .primary:disabled{ opacity:.5; cursor:not-allowed; filter:none; }
+
+  /* ---- drill ---- */
+  .drill-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.82rem; color:var(--muted); }
+  .drill-top b{ color:var(--ink); }
+  .bar{ height:6px; border-radius:99px; background:var(--panel-2); border:1px solid var(--border); margin-top:10px; overflow:hidden; }
+  .bar span{ display:block; height:100%; width:0; background:var(--accent); transition:width .25s linear; }
+
+  .prompt{
+    margin:26px 0 18px; text-align:center;
+    font-size:clamp(2.6rem,12vw,4rem); font-weight:700; letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .prompt .op{ color:var(--muted); font-weight:400; }
+
+  .answer{
+    margin:0 auto; width:min(320px,100%); min-height:74px; padding:12px 16px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:2.4rem; font-weight:700; font-variant-numeric:tabular-nums;
+    border:2px dashed var(--border); border-radius:12px; background:var(--panel-2);
+  }
+  .answer.empty{ color:var(--muted); }
+  .answer.right{ border-style:solid; border-color:var(--good); background:var(--good-bg); color:var(--good); }
+  .answer.wrong{ border-style:solid; border-color:var(--bad); background:var(--bad-bg); color:var(--bad); }
+  .caret{ display:inline-block; width:2px; height:1em; background:var(--accent); margin-left:2px; animation:blink 1s steps(2,start) infinite; vertical-align:-.12em; }
+  @keyframes blink{ 50%{ opacity:0 } }
+  @media (prefers-reduced-motion: reduce){ .caret{ animation:none } .bar span{ transition:none } }
+
+  .feedback{ margin-top:14px; text-align:center; font-size:.95rem; min-height:1.5em; color:var(--muted); }
+  .feedback.right{ color:var(--good); font-weight:600; }
+  .feedback.wrong{ color:var(--bad); font-weight:600; }
+
+  .keypad{ margin:22px auto 0; width:min(320px,100%); display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .keypad button{
+    padding:16px 0; font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+  }
+  .keypad button:active{ transform:translateY(1px); }
+  .keypad .enter{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* Guarded: a tapped key keeps :hover on touch screens, which would otherwise
+     leave the enter key white-on-white. */
+  @media (hover: hover){
+    .keypad button:hover{ background:var(--hover); }
+    .keypad .enter:hover{ background:var(--accent); filter:brightness(1.08); }
+  }
+
+  .drill-foot{ margin-top:18px; display:flex; justify-content:center; gap:10px; }
+
+  /* ---- summary ---- */
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+  .stat{ background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; }
+  .stat .v{ font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stat .k{ font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:4px; }
+
+  .factlist{ display:flex; flex-wrap:wrap; gap:8px; }
+  .fact{
+    font-size:.85rem; font-weight:600; font-variant-numeric:tabular-nums;
+    padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2);
+  }
+  .fact.wrong{ border-color:var(--bad); color:var(--bad); background:var(--bad-bg); }
+  .fact.slow{ border-color:var(--warn); color:var(--warn); background:var(--warn-bg); }
+  .fact small{ font-weight:400; opacity:.8; }
+
+  .actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+  .actions button{
+    flex:1 1 160px; padding:13px; font-size:.95rem; font-weight:700; border-radius:10px;
+    background:var(--panel-2); border:1px solid var(--border);
+  }
+  .actions button:hover{ background:var(--hover); }
+  .actions button.go{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .actions button.go:hover{ filter:brightness(1.08); }
+
+  /* ---- heatmap ---- */
+  .grid-wrap{ overflow-x:auto; }
+  table.grid{ border-collapse:separate; border-spacing:3px; font-variant-numeric:tabular-nums; }
+  table.grid th{ font-size:.7rem; font-weight:700; color:var(--muted); width:26px; height:26px; }
+  table.grid td{
+    width:26px; height:26px; border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-2);
+  }
+  table.grid td.m-new{ background:var(--panel-2); }
+  table.grid td.m-learning{ background:var(--bad); border-color:var(--bad); }
+  table.grid td.m-practicing{ background:var(--warn); border-color:var(--warn); }
+  table.grid td.m-fluent{ background:var(--good); border-color:var(--good); }
+  .key{ display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:.75rem; color:var(--muted); }
+  .key i{ display:inline-block; width:12px; height:12px; border-radius:3px; border:1px solid var(--border); margin-right:6px; vertical-align:-2px; }
+  .key .k-new i{ background:var(--panel-2); }
+  .key .k-learning i{ background:var(--bad); border-color:var(--bad); }
+  .key .k-practicing i{ background:var(--warn); border-color:var(--warn); }
+  .key .k-fluent i{ background:var(--good); border-color:var(--good); }
+
+  footer{ margin-top:30px; color:var(--muted); font-size:.8rem; text-align:center; }
+  footer a{ color:var(--accent); }
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="../">&larr; Playground</a>
+
+  <header>
+    <div>
+      <h1>Multiplication Fluency</h1>
+      <p class="tagline">Spaced-repetition drills: each fact comes back right before you'd forget it.</p>
+    </div>
+    <button id="btnTheme" aria-label="Toggle color theme"></button>
+  </header>
+
+  <!-- ============ SETUP ============ -->
+  <section id="setup">
+    <div class="panel">
+      <h2>Times tables</h2>
+      <div class="chips" id="tableChips"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="mini" data-preset="all">All</button>
+        <button class="mini" data-preset="easy">1, 2, 5, 10</button>
+        <button class="mini" data-preset="low">2–5</button>
+        <button class="mini" data-preset="high">6–12</button>
+        <button class="mini" data-preset="tricky">Tricky (6–8, 12)</button>
+        <button class="mini" data-preset="none">Clear</button>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="minB">Multiplied by</label>
+          <select id="minB"></select>
+          <span>to</span>
+          <select id="maxB"></select>
+        </div>
+        <span class="sub" id="poolCount"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>What to practice</h2>
+      <div class="row">
+        <div class="seg" id="pickSeg" role="group" aria-label="How questions are chosen">
+          <button data-pick="srs" aria-pressed="true">Spaced repetition</button>
+          <button data-pick="free" aria-pressed="false">Free drill</button>
+        </div>
+        <div class="field" id="newField">
+          <label for="newLimit">New facts</label>
+          <select id="newLimit">
+            <option value="5">up to 5</option>
+            <option value="10" selected>up to 10</option>
+            <option value="20">up to 20</option>
+            <option value="999">no limit</option>
+          </select>
+        </div>
+      </div>
+      <p class="sub" id="pickHelp"></p>
+      <p class="sub" id="dueLine"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Session length</h2>
+      <div class="row">
+        <div class="seg" id="modeSeg" role="group" aria-label="Session mode">
+          <button data-mode="sprint" aria-pressed="true">Sprint</button>
+          <button data-mode="set" aria-pressed="false">Fixed set</button>
+          <button data-mode="endless" aria-pressed="false">Endless</button>
+        </div>
+        <div class="field" id="sprintField">
+          <label for="seconds">Length</label>
+          <select id="seconds">
+            <option value="30">30 seconds</option>
+            <option value="60" selected>1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+          </select>
+        </div>
+        <div class="field" id="setField" hidden>
+          <label for="count">Questions</label>
+          <select id="count">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label class="opt"><input type="checkbox" id="optRetry" checked> Retype the answer after a miss</label>
+      </div>
+      <button class="primary" id="btnStart">Start</button>
+      <p class="sub" style="text-align:center;margin-top:10px">Type with the keyboard or the on-screen keypad. <b>Enter</b> to answer.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Progress</h2>
+      <p class="sub" id="progressSummary"></p>
+      <div class="grid-wrap" style="margin-top:14px">
+        <table class="grid" id="heatmap">
+          <caption class="sr-only">Mastery of each multiplication fact, rows by first factor and columns by second factor</caption>
+        </table>
+      </div>
+      <div class="key">
+        <span class="k-new"><i></i>Not tried</span>
+        <span class="k-learning"><i></i>Learning (due within a day)</span>
+        <span class="k-practicing"><i></i>Reviewing (days)</span>
+        <span class="k-fluent"><i></i>Fluent (2+ weeks)</span>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <span class="sub" id="focusLabel">Needs work:</span>
+      </div>
+      <div class="factlist" id="focusList" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="mini" id="btnDrillWeak">Drill my weakest 15 facts</button>
+        <button class="mini" id="btnReset">Reset progress</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DRILL ============ -->
+  <section id="drill" hidden>
+    <div class="panel">
+      <div class="drill-top">
+        <span id="drillProgress"></span>
+        <span id="drillScore"></span>
+      </div>
+      <div class="bar"><span id="drillBar"></span></div>
+
+      <p class="prompt" id="prompt" aria-live="off"></p>
+      <div class="answer empty" id="answer" aria-hidden="true">?</div>
+      <p class="sr-only" aria-live="assertive" id="srStatus"></p>
+      <p class="feedback" id="feedback" aria-live="polite"></p>
+
+      <div class="keypad" id="keypad">
+        <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+        <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+        <button data-key="back" aria-label="Backspace">&#9003;</button>
+        <button data-key="0">0</button>
+        <button data-key="enter" class="enter" aria-label="Submit answer">&#9166;</button>
+      </div>
+
+      <div class="drill-foot">
+        <button class="mini" id="btnQuit">End session (Esc)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SUMMARY ============ -->
+  <section id="summary" hidden>
+    <div class="panel">
+      <h2 id="summaryTitle">Session summary</h2>
+      <div class="stats" id="summaryStats"></div>
+      <p class="sub" id="summarySched" style="margin-top:14px"></p>
+      <div id="summaryMissedWrap" style="margin-top:20px" hidden>
+        <h2>Missed</h2>
+        <div class="factlist" id="summaryMissed"></div>
+      </div>
+      <div id="summarySlowWrap" style="margin-top:20px" hidden>
+        <h2>Slowest (over 3 seconds)</h2>
+        <div class="factlist" id="summarySlow"></div>
+      </div>
+      <div class="actions">
+        <button class="go" id="btnAgain">Go again</button>
+        <button id="btnPracticeMissed" hidden>Practice the misses</button>
+        <button id="btnBack">Change setup</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Everything stays in this browser. Part of
+    <a href="https://github.com/jokajak/playground">Playground</a>.
+  </footer>
+</main>
+<script src="src/app.js"></script>
+</body>
+</html>
