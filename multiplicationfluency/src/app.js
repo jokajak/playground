@@ -255,8 +255,11 @@
   const DRAGON_TABLES = 12;   // one dragon per times table, 1s through 12s
   const DRAGON_FACTS = 12;    // t×1 .. t×12 all fluent
 
+  /* emoji is the cute face for tiles and the sidelines; flyEmoji is the
+   * full-bodied dragon, which reads far better in flight. */
   const dragonDef = (t) => ({
-    id: 'd' + t, emoji: '🐲', name: 'Dragon of the ' + t + 's', table: t, dragon: true,
+    id: 'd' + t, emoji: '🐲', flyEmoji: '🐉',
+    name: 'Dragon of the ' + t + 's', table: t, dragon: true,
   });
 
   const MAX_NAME = 18;
@@ -637,7 +640,7 @@
       const face = document.createElement('span');
       face.className = 'face';
       face.textContent = def.emoji;
-      face.style.animationDelay = (i * 0.18).toFixed(2) + 's';
+      face.style.setProperty('--bob', (i * 0.18).toFixed(2) + 's');
       pal.appendChild(face);
       /* Split across both sides only when there is room to flank the question. */
       const side = (wideScreen.matches && i % 2) ? el.cheerRight : el.cheerLeft;
@@ -656,7 +659,7 @@
       p.classList.remove('cheering');
       void p.offsetWidth;
       setTimeout(() => p.classList.add('cheering'), big ? i * 45 : 0);
-      setTimeout(() => p.classList.remove('cheering'), (big ? i * 45 : 0) + 600);
+      setTimeout(() => p.classList.remove('cheering'), (big ? i * 45 : 0) + 740);
     });
   }
 
@@ -687,11 +690,11 @@
     dragons.forEach((d, i) => {
       const f = document.createElement('span');
       f.className = 'flier';
-      f.textContent = d.emoji;
+      f.textContent = d.flyEmoji || d.emoji;
       f.title = displayName(d);
-      f.style.top = (4 + (i * 13) % 28) + 'px';
+      f.style.top = (2 + (i * 11) % 18) + 'px';
       if (lessMotion.matches) {
-        f.style.left = (14 + i * 44) + 'px';    // no drifting: just perch them
+        f.style.left = (14 + i * 52) + 'px';    // no drifting: just perch them
       } else {
         f.style.setProperty('--dist', dist + 'px');
         f.style.animationDuration = (12 + (i % 4) * 3) + 's';
