@@ -267,48 +267,66 @@
   /* Original artwork, drawn here rather than borrowed: one chubby hatchling per
    * times table, tinted by hue. Inline SVG keeps the page self-contained and
    * scales cleanly from the 26px sideline to the 44px sky. */
-  const HUES = [140, 205, 275, 330, 22, 48, 95, 175, 240, 300, 8, 62];
+  const HUES = [95, 150, 200, 262, 320, 18, 45, 120, 178, 232, 288, 352];
 
   function palette(t) {
     const h = HUES[(t - 1) % HUES.length];
     return {
-      body: 'hsl(' + h + ' 62% 56%)',
-      dark: 'hsl(' + h + ' 55% 36%)',
-      belly: 'hsl(' + ((h + 14) % 360) + ' 72% 88%)',
-      wing: 'hsl(' + ((h + 10) % 360) + ' 62% 76%)',
-      horn: '#ffe9b5',
+      body: 'hsl(' + h + ' 44% 56%)',
+      light: 'hsl(' + h + ' 46% 68%)',
+      dark: 'hsl(' + h + ' 40% 33%)',
+      belly: '#f0a962',        // warm underside and wing membrane
+      bellyLn: '#cf8842',
+      fin: '#5b9bc4',          // blue-teal ridges, ear and tail fin
+      finDk: '#3d7ba3',
+      horn: '#f7d3a0',
     };
   }
 
   function dragonArt(t, w) {
     const c = palette(t);
     const S = 'stroke="' + c.dark + '" stroke-width="1.4" stroke-linejoin="round"';
+    const F = 'stroke="' + c.finDk + '" stroke-width="1.1" stroke-linejoin="round"';
+    const B = 'stroke="' + c.bellyLn + '" stroke-width="1.3" stroke-linejoin="round"';
+    const spot = (x, y, r) =>
+      '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + c.light + '" opacity=".8"/>';
     return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
       '" aria-hidden="true" focusable="false">' +
+      /* tail, tipped with a blue fin */
       '<path d="M20 38 C10 42 3 36 5.5 27 C6.5 34 12 36 17 32 Z" fill="' + c.body + '" ' + S + '/>' +
-      '<path d="M5.5 27 C1 26 -0.5 21 2 18 C4 21 7 21.5 9 20 C9.5 23.5 8.5 26.5 5.5 27 Z" fill="' + c.wing + '" ' + S + '/>' +
-      '<path d="M24 22 l3 -5 l3 5 z" fill="' + c.horn + '"/>' +
-      '<path d="M30 20 l3 -5 l3 5 z" fill="' + c.horn + '"/>' +
-      '<ellipse cx="23" cy="45" rx="6" ry="4.6" fill="' + c.dark + '"/>' +
+      '<path d="M5.5 27 C1 26 -0.5 21 2 18 C4 21 7 21.5 9 20 C9.5 23.5 8.5 26.5 5.5 27 Z" fill="' + c.fin + '" ' + F + '/>' +
+      /* spinal ridges */
+      '<path d="M12 33 l2.2 -3.6 l2.2 3.6 z" fill="' + c.fin + '" ' + F + '/>' +
+      '<path d="M17 30 l2.4 -4 l2.4 4 z" fill="' + c.fin + '" ' + F + '/>' +
+      '<path d="M33 23.5 l2.5 -4.2 l2.5 4.2 z" fill="' + c.fin + '" ' + F + '/>' +
+      '<ellipse cx="23" cy="45" rx="6" ry="4.6" fill="' + c.dark + '" opacity=".9"/>' +
       '<ellipse cx="28" cy="35" rx="12.5" ry="10.5" fill="' + c.body + '" ' + S + '/>' +
-      '<ellipse cx="30" cy="38.5" rx="8.5" ry="6.2" fill="' + c.belly + '"/>' +
+      spot(22, 31, 1.3) + spot(27, 29.5, 1.1) +
+      /* striped chest plate */
+      '<ellipse cx="33" cy="39" rx="6" ry="6.4" fill="' + c.belly + '"/>' +
+      '<path d="M28.4 36 h9 M27.6 39.5 h10.6 M28.8 43 h8.6" stroke="' + c.bellyLn +
+      '" stroke-width="1" stroke-linecap="round" opacity=".85"/>' +
       '<ellipse cx="36" cy="45" rx="5" ry="4" fill="' + c.body + '" ' + S + '/>' +
-      '<path d="M24 28 C21 16 26 6 33 7 C33 12 33.5 17 35 21 C32 21.5 33.5 24.5 30 24.5 C27.5 24.5 28.5 27.5 24 28 Z" fill="' + c.wing + '" ' + S + '/>' +
-      '<path d="M33 7 C33.5 13 34 17 35 21" fill="none" stroke="' + c.dark + '" stroke-opacity=".45" stroke-width="1.1"/>' +
-      '<path d="M28 9.5 C28.5 15 28.5 20 27.5 25.5" fill="none" stroke="' + c.dark + '" stroke-opacity=".3" stroke-width="1"/>' +
+      /* wing: warm membrane swept up and back, blue leading edge */
+      '<path d="M27 27.5 C21 20 16 10 20.5 5.5 C26 5 31.5 12.5 35 19.5 C31.5 20.5 33 23 30 23.5 C27.8 24 29 26.5 27 27.5 Z" fill="' + c.belly + '" ' + B + '/>' +
+      '<path d="M27 27.5 C21 20 16 10 20.5 5.5" fill="none" stroke="' + c.finDk + '" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<path d="M20.5 5.5 C24 11 28 16 35 19.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1.1" opacity=".9"/>' +
+      '<path d="M22.5 11 C25 15 27 19 29.5 22.5" fill="none" stroke="' + c.bellyLn + '" stroke-width="1" opacity=".6"/>' +
+      /* head */
       '<circle cx="45" cy="22" r="12" fill="' + c.body + '" ' + S + '/>' +
       '<ellipse cx="54.5" cy="25.5" rx="5.6" ry="4.2" fill="' + c.body + '" ' + S + '/>' +
-      '<ellipse cx="55" cy="27" rx="3.8" ry="2.2" fill="' + c.belly + '"/>' +
-      '<path d="M39.5 12.5 L40.5 4.5 L45.5 10.5 Z" fill="' + c.horn + '" ' + S + '/>' +
-      '<path d="M48 9.5 L52.5 3.5 L52.5 11 Z" fill="' + c.horn + '" ' + S + '/>' +
-      '<ellipse cx="36" cy="15" rx="3.6" ry="4.2" transform="rotate(-25 36 15)" fill="' + c.wing + '" ' + S + '/>' +
+      '<ellipse cx="55" cy="27" rx="3.8" ry="2.2" fill="' + c.light + '" opacity=".7"/>' +
+      '<path d="M39.5 12.5 L40.5 4.5 L45.5 10.5 Z" fill="' + c.horn + '" ' + B + '/>' +
+      '<path d="M48 9.5 L52.5 3.5 L52.5 11 Z" fill="' + c.horn + '" ' + B + '/>' +
+      '<ellipse cx="36" cy="15" rx="3.6" ry="4.2" transform="rotate(-25 36 15)" fill="' + c.fin + '" ' + F + '/>' +
       '<circle cx="47.5" cy="20" r="4.6" fill="#fff" stroke="' + c.dark + '" stroke-width="1"/>' +
-      '<circle cx="48.4" cy="20.6" r="2.7" fill="#23252b"/>' +
+      '<circle cx="48.4" cy="20.6" r="2.7" fill="#2b2f36"/>' +
       '<circle cx="47.1" cy="18.9" r="1.1" fill="#fff"/>' +
-      '<circle cx="49.6" cy="22" r=".6" fill="#fff" opacity=".8"/>' +
+      '<circle cx="49.6" cy="22" r=".6" fill="#fff" opacity=".85"/>' +
       '<circle cx="58" cy="23.6" r="1" fill="' + c.dark + '"/>' +
       '<path d="M51 29 C53 31 56 31 58 29.5" fill="none" stroke="' + c.dark + '" stroke-width="1.1" stroke-linecap="round"/>' +
-      '<ellipse cx="41" cy="28" rx="3" ry="1.9" fill="#ff7a90" opacity=".45"/>' +
+      '<ellipse cx="41" cy="28" rx="3" ry="1.9" fill="#ff8fa3" opacity=".5"/>' +
+      spot(51, 17, .85) + spot(54, 19, .75) +
       '</svg>';
   }
 
@@ -316,7 +334,7 @@
     const c = palette(t);
     const spot = (cx, cy, rx, ry, o) =>
       '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry +
-      '" fill="' + c.wing + '" opacity="' + o + '"/>';
+      '" fill="' + c.light + '" opacity="' + o + '"/>';
     return '<svg viewBox="0 0 66 58" width="' + w + '" height="' + (w * 58 / 66).toFixed(1) +
       '" aria-hidden="true" focusable="false">' +
       '<path d="M33 8 C44 8 52 24 52 34 C52 45 43 51 33 51 C23 51 14 45 14 34 C14 24 22 8 33 8 Z" ' +
