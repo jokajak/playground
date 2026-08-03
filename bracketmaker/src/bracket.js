@@ -11,6 +11,14 @@
 
 const VALID_SIZES = [2, 4, 8, 16, 32, 64];
 
+// A 3rd-place match needs two beaten semifinalists, so it only exists once each
+// half plays a semifinal — i.e. from 4 participants up.
+const THIRD_PLACE_MIN_SIZE = 4;
+
+export function supportsThirdPlace(size) {
+  return size >= THIRD_PLACE_MIN_SIZE;
+}
+
 // Standard tournament seeding order (top-to-bottom) within one region/quadrant.
 // Each pair of adjacent entries is a first-round matchup, so the top seed meets
 // the lowest seed, and the seed sums stay constant each round. The 16 ordering
@@ -122,32 +130,68 @@ function build(rounds, ctx) {
   return { node: match, output: win.output };
 }
 
-// The centre column: the champion is picked from the two finalists.
-function championCenter(feeders) {
-  const center = el('div', 'final-center');
+// A labelled line in the centre column (the champion, or 3rd place).
+function placeBox(label, sel) {
   const box = el('div', 'champion-box');
-  const label = el('div', 'champion-label');
-  label.textContent = 'Champion';
-  const sel = winnerSelect(feeders, 'champion-line winner', 'Champion');
-  box.append(label, sel);
-  center.append(box);
+  const caption = el('div', 'champion-label');
+  caption.textContent = label;
+  box.append(caption, sel);
+  return box;
+}
+
+// A pseudo value-holder standing for the *loser* of a match: whichever feeder
+// its winner <select> did not pick. The 3rd-place match is fed by two of these.
+function loserOf(sel) {
+  return { __loserOf: sel };
+}
+
+// The centre column: the champion is picked from the two finalists, with an
+// optional 3rd-place match between the two beaten semifinalists below it.
+// `left`/`right` are each half's value-holder — for a 3rd-place match they are
+// the semifinal winner selects, whose unchosen side is the beaten semifinalist.
+function finalCenter(left, right, thirdPlace) {
+  const center = el('div', thirdPlace ? 'final-center with-third' : 'final-center');
+  center.append(placeBox(
+    'Champion',
+    winnerSelect([left, right], 'champion-line winner', 'Champion'),
+  ));
+
+  if (thirdPlace) {
+    const sel = winnerSelect(
+      [loserOf(left), loserOf(right)],
+      'champion-line winner',
+      'Third place',
+    );
+    sel.__placeholders = ['(left semifinal loser)', '(right semifinal loser)'];
+    const box = placeBox('3rd Place', sel);
+    box.classList.add('third');
+    center.append(box);
+  }
+
   return center;
 }
 
-// Resolve the live name behind a value-holder (text input or winner select).
+// Resolve the live name behind a value-holder (text input, winner select, or
+// the loser proxy above).
 function resolveValue(holder) {
+  if (!holder) return '';
+  if (holder.__loserOf) {
+    const match = holder.__loserOf;
+    if (match.value === '') return ''; // no winner picked yet ⇒ no loser either
+    return resolveValue(match.__feeders[1 - Number(match.value)]);
+  }
   if (holder.tagName === 'INPUT') return holder.value.trim();
   if (holder.value === '') return '';
-  const feeder = holder.__feeders[Number(holder.value)];
-  return feeder ? resolveValue(feeder) : '';
+  return resolveValue(holder.__feeders[Number(holder.value)]);
 }
 
 // Refresh every winner <select>'s option labels to its feeders' current names.
 export function syncWinners(root) {
   root.querySelectorAll('select.winner').forEach((sel) => {
     const [f0, f1] = sel.__feeders;
-    sel.options[1].textContent = resolveValue(f0) || '(top)';
-    sel.options[2].textContent = resolveValue(f1) || '(bottom)';
+    const [p0, p1] = sel.__placeholders ?? ['(top)', '(bottom)'];
+    sel.options[1].textContent = resolveValue(f0) || p0;
+    sel.options[2].textContent = resolveValue(f1) || p1;
   });
 }
 
@@ -175,8 +219,9 @@ function assignSeeds(bracket, size) {
 // Render a two-sided ("March Madness") bracket into `container`.
 // Each half is a single-elimination sub-bracket of size/2 that produces one
 // finalist; the left half flows rightward, the right half mirrors it, and the
-// champion sits in the centre between the two finalists.
-export function renderBracket(container, { size, wildcard = false }) {
+// champion sits in the centre between the two finalists. With `thirdPlace` on,
+// a consolation match between the two beaten semifinalists sits below it.
+export function renderBracket(container, { size, wildcard = false, thirdPlace = false }) {
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Unsupported bracket size: ${size}`);
   }
@@ -204,7 +249,12 @@ export function renderBracket(container, { size, wildcard = false }) {
   const rightHalf = el('div', 'half right');
   rightHalf.append(right.node);
 
-  bracket.append(leftHalf, championCenter([left.output, right.output]), rightHalf);
+  const center = finalCenter(
+    left.output,
+    right.output,
+    thirdPlace && supportsThirdPlace(size),
+  );
+  bracket.append(leftHalf, center, rightHalf);
 
   assignSeeds(bracket, size);
 

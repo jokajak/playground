@@ -22,6 +22,7 @@ keys: ✅ done · 🔜 planned (agreed, not built) · 💡 idea (needs decisions
 | R9 | Quadrant seed numbers | First-round slots are numbered with standard tournament seeding (top seed vs lowest seed) within each quadrant, March Madness style — so seeds repeat across the up-to-four quadrants. Shown on the outer edge of each entry and printed. The 16-per-quadrant ordering matches the traditional NCAA region layout. |
 | R10 | Save / load | Auto-saves to the browser (localStorage) so work survives a refresh. **Save** downloads the bracket as a JSON file and **Load** imports one, to move a bracket between devices. **Clear** resets the title and entries. |
 | R11 | Wildcard play-ins | A **Wildcard play-ins** toggle. When on, the lowest seed in each quadrant (the 16-seed in a 64-bracket) is decided by a two-way play-in whose winner faces the 1-seed. The seed slot becomes a winner dropdown; the two competitors are drawn as a small fork in the outer margin and print cleanly. |
+| R12 | 3rd place match (optional) | A **3rd place match** toggle. When on, a consolation line sits below the champion in the centre column: a dropdown between the two beaten semifinalists (the side each half's final did *not* advance), so it tracks the semifinal picks automatically. Disabled for a 2-bracket, which has no semifinals. The champion stays on the bracket's vertical centre. |
 
 ---
 
@@ -33,7 +34,7 @@ _Nothing actively queued._
 
 ## Out of scope (for now)
 
-- Double elimination / consolation brackets
+- Double elimination / full consolation brackets (beyond the 3rd place match)
 - Byes or non-power-of-two counts
 - Score / result tracking
 - Accounts or cloud sync

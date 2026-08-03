@@ -20,6 +20,7 @@
       --row-h:   2.75rem;   /* min height of a first-round row */
       --line-w:  2.5px;     /* stroke width of all lines */
       --elbow:   9px;       /* corner radius of the connector elbows */
+      --third-gap: 2.6rem;  /* space between the champion and 3rd-place boxes */
     }
 
     html, body { height: 100%; }
@@ -98,6 +99,8 @@
       align-self: center;
     }
     .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+    .toggle:has(input:disabled) { color: var(--muted); cursor: default; }
+    .toggle input:disabled { cursor: default; }
 
     .hint { font-size: 0.78rem; color: var(--muted); align-self: center; max-width: 26rem; }
 
@@ -283,7 +286,19 @@
       flex: 0 0 auto;
       min-width: var(--col-w);
     }
+    /* With a 3rd-place match the column carries a second box below the
+       champion; this counterweight above it keeps the champion line on the
+       bracket's vertical centre, level with the two finalists. Its height is
+       exactly the 3rd-place block's (gap + box). */
+    .final-center.with-third::before {
+      content: "";
+      flex: 0 0 auto;
+      height: calc(var(--row-h) + var(--third-gap));
+    }
     .champion-box { position: relative; min-height: var(--row-h); }
+    .champion-box.third { margin-top: var(--third-gap); }
+    .champion-box.third .champion-label { color: var(--muted); }
+    .champion-box.third .champion-line { font-weight: 600; }
     .champion-label {
       position: absolute;
       left: 0;
@@ -365,6 +380,7 @@
       </select>
     </div>
     <label class="toggle"><input type="checkbox" id="wildcard"> Wildcard play-ins</label>
+    <label class="toggle" id="thirdplace-label"><input type="checkbox" id="thirdplace"> 3rd place match</label>
     <button id="print" class="btn">Print bracket</button>
     <button id="save" class="btn secondary">Save</button>
     <button id="load" class="btn secondary">Load</button>
@@ -383,33 +399,46 @@
   </div>
 
   <script type="module">
-    import { renderBracket, VALID_SIZES, syncWinners } from './src/bracket.js';
+    import { renderBracket, VALID_SIZES, syncWinners, supportsThirdPlace }
+      from './src/bracket.js';
 
     const STORAGE_KEY = 'bracketmaker:current';
 
     const sizeSelect = document.getElementById('size');
     const titleInput = document.getElementById('title');
     const wildcardToggle = document.getElementById('wildcard');
+    const thirdToggle = document.getElementById('thirdplace');
+    const thirdLabel = document.getElementById('thirdplace-label');
     const host = document.getElementById('bracket-host');
     const fileInput = document.getElementById('file');
 
+    // A 2-bracket has no semifinals, so it has nobody to play for 3rd place.
+    function syncControls() {
+      const ok = supportsThirdPlace(Number(sizeSelect.value));
+      thirdToggle.disabled = !ok;
+      thirdLabel.title = ok ? '' : 'Needs at least 4 participants';
+    }
+
     function draw() {
+      syncControls();
       renderBracket(host, {
         size: Number(sizeSelect.value),
         wildcard: wildcardToggle.checked,
+        thirdPlace: thirdToggle.checked,
       });
     }
 
-    // ── State: title + size + wildcard + first-round entries + winner picks ──
+    // ── State: title + size + toggles + first-round entries + winner picks ──
     // entries = the text inputs (leaves + play-in competitors); picks = each
-    // winner/champion/play-in select's chosen side. Both are in document order,
-    // deterministic for a given size + wildcard setting.
+    // winner/champion/play-in/3rd-place select's chosen side. Both are in
+    // document order, deterministic for a given size + toggle settings.
     function collectState() {
       return {
         app: 'bracketmaker',
-        version: 3,
+        version: 4,
         size: Number(sizeSelect.value),
         wildcard: wildcardToggle.checked,
+        thirdPlace: thirdToggle.checked,
         title: titleInput.value,
         entries: [...host.querySelectorAll('input.line')].map((i) => i.value),
         picks: [...host.querySelectorAll('select.winner')].map((s) => s.value),
@@ -420,6 +449,7 @@
       if (!state || typeof state !== 'object') return;
       if (VALID_SIZES.includes(state.size)) sizeSelect.value = String(state.size);
       wildcardToggle.checked = Boolean(state.wildcard);
+      thirdToggle.checked = Boolean(state.thirdPlace);
       draw(); // rebuild at the right size, then fill the (deterministic) slots
       titleInput.value = state.title ?? '';
       const inputs = [...host.querySelectorAll('input.line')];
@@ -493,6 +523,7 @@
 
     sizeSelect.addEventListener('change', () => { draw(); saveLocal(); });
     wildcardToggle.addEventListener('change', () => { draw(); saveLocal(); });
+    thirdToggle.addEventListener('change', () => { draw(); saveLocal(); });
     host.addEventListener('input', saveLocal);
     host.addEventListener('change', saveLocal); // winner dropdowns
     titleInput.addEventListener('input', saveLocal);

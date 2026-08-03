@@ -51,6 +51,14 @@ quadrant (the 16-seed in a 64-bracket): two wildcard competitors battle, and the
 winner faces the 1-seed. The play-in is drawn as a small fork just outside the
 bracket and works like any other matchup — pick the winner and it advances.
 
+### 3rd place match
+
+Toggle **3rd place match** to add a consolation line below the champion. Its two
+competitors are the beaten semifinalists — whoever each half's final did *not*
+advance — so it follows your semifinal picks automatically; just choose which of
+them takes 3rd. It prints with the champion in the centre of the sheet. (A
+2-participant bracket has no semifinals, so the toggle is disabled there.)
+
 ### Saving your work
 
 Your bracket is saved in the browser automatically, so a refresh won't lose it.
@@ -68,6 +76,7 @@ To move a bracket between devices, use **Save** (downloads a `.json` file) and
 - [x] Per-quadrant seed numbers
 - [x] Save / load brackets (auto-save + JSON file export/import)
 - [x] Wildcard play-ins for the lowest seed in each quadrant
+- [x] Optional 3rd place match between the beaten semifinalists
 
 See `REQUIREMENTS.md` for the full status checklist.
 

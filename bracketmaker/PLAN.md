@@ -25,6 +25,8 @@ GitHub Pages (same model as jeopardymaker).
 - **Per-quadrant seed numbers** in standard tournament order.
 - **Wildcard play-ins** (toggle): the lowest seed in each quadrant is decided by
   a two-way play-in whose winner faces the 1-seed.
+- **3rd place match** (toggle): a consolation line below the champion, contested
+  by the two beaten semifinalists.
 - **Save / load**: auto-save to localStorage plus JSON file export/import.
 - **Print-friendly** output: blank matchup lines to handwrite on, controls
   hidden, landscape `@page`.
@@ -86,6 +88,23 @@ of those leaf indices and swaps in a `playinLeaf`: the seed slot becomes a winne
 keeps the main grid pixel-aligned — the fork lives entirely in the margin and
 reuses the normal connector.
 
+### 3rd place match
+Each half's final *is* a semifinal, so the two beaten semifinalists are simply
+the sides those two winner selects did not pick. Rather than duplicate state,
+the 3rd-place select is fed two `loserOf(sel)` proxies — `{ __loserOf: sel }` —
+and `resolveValue` reads the *unchosen* feeder (`1 - value`) through them. The
+consolation line therefore follows the semifinal picks with no extra wiring, and
+blanks itself again whenever a semifinal is un-picked.
+
+It renders as a second labelled box in the centre column, below the champion.
+The champion must stay level with the two finalist lines, so `.final-center`
+gains a `::before` counterweight of exactly the 3rd-place block's height (gap +
+box) — keeping the flex column's centred item centred, with no magic numbers and
+nothing positioned outside the flow (so the print fitter still measures it).
+
+The toggle is disabled below 4 participants: a 2-bracket has no semifinals, and
+`renderBracket` guards on `supportsThirdPlace(size)` as well.
+
 ### Printing
 On `beforeprint`, the bracket is measured and `transform: scale()`-d to fit a
 conservative landscape printable area (≈960×600 px, safe for US Letter and A4);
@@ -101,9 +120,10 @@ name, and `syncWinners` refreshes every select's option labels — so typing or
 re-picking upstream flows forward without copying strings around.
 
 ### Persistence
-The state is `{ size, title, entries[], picks[] }`: `entries` are the leaf input
-values and `picks` are each winner/champion select's chosen side, both in
-document order — deterministic for a given size, so re-rendering and re-filling
+The state is `{ size, wildcard, thirdPlace, title, entries[], picks[] }`:
+`entries` are the leaf input values and `picks` are each winner / champion /
+3rd-place select's chosen side, both in document order — deterministic for a
+given size and toggle combination, so re-rendering and re-filling
 round-trips losslessly. It auto-saves to `localStorage` on every edit and can be
 exported/imported as a JSON file.
 
