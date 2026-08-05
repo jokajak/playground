@@ -236,6 +236,45 @@
   .key .k-practicing i{ background:var(--warn); border-color:var(--warn); }
   .key .k-fluent i{ background:var(--good); border-color:var(--good); }
 
+  /* ---- exact-fact picker ---- */
+  details.picker{
+    margin-top:14px; border:1px solid var(--border); border-radius:10px; background:var(--panel-2);
+  }
+  details.picker > summary{
+    cursor:pointer; list-style:none; padding:11px 12px;
+    font-size:.85rem; font-weight:700; display:flex; align-items:center; gap:8px;
+  }
+  details.picker > summary::-webkit-details-marker{ display:none; }
+  details.picker > summary::before{ content:"\25B8"; color:var(--muted); }
+  details.picker[open] > summary::before{ content:"\25BE"; }
+  details.picker > summary:hover{ color:var(--accent); }
+  details.picker > summary .count{ font-weight:600; color:var(--muted); }
+  .picker-body{ padding:0 12px 14px; }
+  .picker-body .row:first-child{ margin-top:0; }
+  table.pickgrid th, table.pickgrid td{ padding:0; border:0; background:none; width:auto; height:auto; }
+  .pickgrid .cell, .pickgrid .hd{
+    width:27px; height:27px; padding:0; border-radius:5px; line-height:1;
+    font-size:.7rem; font-weight:700; color:var(--muted);
+    border:1px solid var(--border); background:var(--panel-2);
+  }
+  .pickgrid .hd{ background:transparent; border-color:transparent; }
+  /* Narrow screens scroll the grid sideways; the row labels have to stay put
+     or you lose track of which fact you are tapping. */
+  .pickgrid tbody th, .pickgrid thead th:first-child{
+    position:sticky; left:0; z-index:1; background:var(--panel-2);
+  }
+  .pickgrid .hd:hover{ color:var(--accent); border-color:var(--border); }
+  /* Unpicked facts stay legible but clearly out of the running. */
+  .pickgrid .cell{ opacity:.38; }
+  .pickgrid .cell:hover{ opacity:.75; }
+  .pickgrid .cell.m-learning{ background:var(--bad); border-color:var(--bad); }
+  .pickgrid .cell.m-practicing{ background:var(--warn); border-color:var(--warn); }
+  .pickgrid .cell.m-fluent{ background:var(--good); border-color:var(--good); }
+  .pickgrid .cell[aria-pressed="true"]{ opacity:1; box-shadow:inset 0 0 0 2px var(--accent); }
+  .pickgrid .cell[aria-pressed="true"]:hover{ opacity:1; }
+  .key .k-picked i{ background:var(--panel-2); box-shadow:inset 0 0 0 2px var(--accent); }
+  .k-picked{ font-weight:700; color:var(--ink); }
+
   /* ---- menagerie ---- */
   .zoo{ display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:10px; }
   .pet{
@@ -419,6 +458,39 @@
         </div>
         <span class="sub" id="poolCount"></span>
       </div>
+      <p class="sub" id="customNote" hidden></p>
+
+      <details class="picker" id="pickerWrap">
+        <summary>Pick exact facts <span class="count" id="pickerCount"></span></summary>
+        <div class="picker-body">
+          <p class="sub" style="margin-bottom:10px">
+            Tap any square to quiz on exactly that fact — the colours show how well you know
+            it already. Row and column headers take the whole line at once.
+          </p>
+          <div class="row">
+            <label class="opt"><input type="checkbox" id="optCustom"> Quiz only the facts I pick here</label>
+          </div>
+          <div class="row">
+            <button class="mini" data-fpick="tables">Match the tables above</button>
+            <button class="mini" data-fpick="learning">Still learning</button>
+            <button class="mini" data-fpick="slow">Slow ones</button>
+            <button class="mini" data-fpick="untried">Not tried yet</button>
+            <button class="mini" data-fpick="none">Clear</button>
+          </div>
+          <div class="grid-wrap" style="margin-top:12px">
+            <table class="grid pickgrid" id="factPicker">
+              <caption class="sr-only">Choose which multiplication facts to be quizzed on, rows by first factor and columns by second factor</caption>
+            </table>
+          </div>
+          <div class="key">
+            <span class="k-picked"><i></i>Picked</span>
+            <span class="k-new"><i></i>Not tried</span>
+            <span class="k-learning"><i></i>Learning</span>
+            <span class="k-practicing"><i></i>Knows it — not quick yet</span>
+            <span class="k-fluent"><i></i>Fluent</span>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="panel">
@@ -516,7 +588,12 @@
       </div>
       <div class="factlist" id="focusList" style="margin-top:8px"></div>
       <div class="row" style="margin-top:16px">
+        <span class="sub" id="slowLabel">Almost fluent — right, but slow:</span>
+      </div>
+      <div class="factlist" id="slowList" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:16px">
         <button class="mini" id="btnDrillWeak">Drill my weakest 15 facts</button>
+        <button class="mini" id="btnDrillSlow" title="Facts you get right but have to work out, nearest the 3-second bar first">Drill my 15 almost-fluent facts</button>
         <button class="mini" id="btnReset">Reset progress</button>
       </div>
     </div>
@@ -580,6 +657,7 @@
       <div class="actions">
         <button class="go" id="btnAgain">Go again</button>
         <button id="btnPracticeMissed" hidden>Practice the misses</button>
+        <button id="btnPracticeSlow" hidden>Practice the slow ones</button>
         <button id="btnBack">Change setup</button>
       </div>
     </div>

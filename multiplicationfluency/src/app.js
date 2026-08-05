@@ -51,6 +51,12 @@
     count: 20,
     retry: true,
     auto: true,
+    /* Hand-picked facts, chosen square by square in the picker. Only used as
+     * the pool while `custom` is on, so a saved selection survives a spell of
+     * drilling whole tables. */
+    customKeys: [],
+    custom: false,
+    pickerOpen: false,
   });
 
   let store = { v: 1, facts: {}, prefs: defaultPrefs(), animals: {}, names: {} };
@@ -69,6 +75,10 @@
         Object.keys(store.facts).forEach((k) => {
           if (typeof store.facts[k].fastStreak !== 'number') store.facts[k].fastStreak = 0;
         });
+        /* Saved by an older build, or edited by hand: keep only real facts. */
+        store.prefs.customKeys = Array.isArray(store.prefs.customKeys)
+          ? store.prefs.customKeys.filter(validKey).filter((k, i, all) => all.indexOf(k) === i)
+          : [];
       }
     } catch (e) {
       /* corrupt or unavailable storage: start fresh, silently */
@@ -76,17 +86,44 @@
   }
 
   let saveTimer = null;
+  function writeStore() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    } catch (e) { /* private mode / quota: keep running in memory */ }
+  }
   function save() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(store));
-      } catch (e) { /* private mode / quota: keep running in memory */ }
-    }, 120);
+    saveTimer = setTimeout(writeStore, 120);
   }
+  /* A tab can be closed, reloaded or backgrounded inside the debounce window —
+   * and on a phone it may never come back — so flush anything still pending
+   * rather than lose the last answer or setting. */
+  function flushSave() { if (saveTimer) writeStore(); }
+  window.addEventListener('pagehide', flushSave);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushSave();
+  });
 
   const key = (a, b) => a + 'x' + b;
   const parseKey = (k) => k.split('x').map(Number);
+
+  function validKey(k) {
+    if (typeof k !== 'string') return false;
+    const parts = k.split('x');
+    if (parts.length !== 2) return false;
+    return parts.every((p) => {
+      const n = Number(p);
+      return p !== '' && Number.isInteger(n) && n >= MIN_FACTOR && n <= MAX_FACTOR;
+    });
+  }
+
+  /* Reading order: down the rows, then across. */
+  const sortKeys = (keys) => keys.slice().sort((x, y) => {
+    const [a1, b1] = parseKey(x), [a2, b2] = parseKey(y);
+    return a1 - a2 || b1 - b2;
+  });
 
   function newRecord() {
     return {
@@ -228,9 +265,41 @@
     return Object.keys(store.facts)
       .filter((k) => {
         const rec = store.facts[k];
-        return rec.seen > 0 && weakness(rec) > 0;
+        /* Facts you only ever get *slow* have their own list and their own
+         * drill, so this one stays about the ones you get wrong. */
+        return rec.seen > 0 && weakness(rec) > 0 && !isSlowFact(rec);
       })
       .sort((x, y) => weakness(store.facts[y]) - weakness(store.facts[x]))
+      .slice(0, limit);
+  }
+
+  /* "Slow, but not wrong" — the facts you know and still have to work out.
+   * They are the ones nearest to fluency, so they get their own drill: the
+   * weakest-facts list is dominated by misses and never surfaces them. */
+  const ACCURATE = 0.8;      // below this it is a knowledge problem, not a speed one
+
+  const answerMs = (rec) => rec.avgMs || rec.lastMs || 0;
+
+  function isSlowFact(rec) {
+    if (!rec || !rec.seen || isFluent(rec)) return false;
+    if (rec.correct / rec.seen < ACCURATE) return false;
+    /* Either the running average is over the bar, or the average still flatters
+     * a fact whose latest answers have gone slow. */
+    return answerMs(rec) > FLUENT_MS ||
+      (rec.lastMs > FLUENT_MS && rec.fastStreak < FLUENT_STREAK);
+  }
+
+  /* The time that puts a fact on the slow list: usually the running average,
+   * but the last answer when that has gone slower than the average lets on. */
+  const slowMs = (rec) => Math.max(answerMs(rec), rec.lastMs || 0);
+
+  /* How far off the fluency bar a fact sits — the yardstick for "almost there". */
+  const overBar = (rec) => slowMs(rec) - FLUENT_MS;
+
+  function slowKeys(limit) {
+    return Object.keys(store.facts)
+      .filter((k) => isSlowFact(store.facts[k]))
+      .sort((x, y) => overBar(store.facts[x]) - overBar(store.facts[y]))
       .slice(0, limit);
   }
 
@@ -361,7 +430,7 @@
 
   /* ------------------------------------------------------------------- pool */
 
-  function poolKeys(prefs) {
+  function tableKeys(prefs) {
     const keys = [];
     const lo = Math.min(prefs.minB, prefs.maxB);
     const hi = Math.max(prefs.minB, prefs.maxB);
@@ -369,6 +438,14 @@
       for (let b = lo; b <= hi; b++) keys.push(key(a, b));
     });
     return keys;
+  }
+
+  /* A live hand-picked selection is the whole pool; otherwise it is the tables
+   * and range chosen above it. */
+  const usingCustom = (prefs) => !!prefs.custom && prefs.customKeys.length > 0;
+
+  function poolKeys(prefs) {
+    return usingCustom(prefs) ? sortKeys(prefs.customKeys) : tableKeys(prefs);
   }
 
   function dueCounts(keys, now) {
@@ -425,6 +502,8 @@
   const el = {
     setup: $('setup'), drill: $('drill'), summary: $('summary'),
     tableChips: $('tableChips'), minB: $('minB'), maxB: $('maxB'), poolCount: $('poolCount'),
+    customNote: $('customNote'), pickerWrap: $('pickerWrap'), pickerCount: $('pickerCount'),
+    optCustom: $('optCustom'), factPicker: $('factPicker'),
     pickSeg: $('pickSeg'), newField: $('newField'), newLimit: $('newLimit'),
     pickHelp: $('pickHelp'), dueLine: $('dueLine'),
     modeSeg: $('modeSeg'), sprintField: $('sprintField'), setField: $('setField'),
@@ -439,7 +518,8 @@
     fluBar: $('fluBar'), fluFill: $('fluFill'), toast: $('toast'),
     progressSummary: $('progressSummary'), heatmap: $('heatmap'),
     focusLabel: $('focusLabel'), focusList: $('focusList'),
-    btnDrillWeak: $('btnDrillWeak'), btnReset: $('btnReset'),
+    slowLabel: $('slowLabel'), slowList: $('slowList'),
+    btnDrillWeak: $('btnDrillWeak'), btnDrillSlow: $('btnDrillSlow'), btnReset: $('btnReset'),
     drillProgress: $('drillProgress'), drillScore: $('drillScore'), drillBar: $('drillBar'),
     prompt: $('prompt'), answer: $('answer'), feedback: $('feedback'), srStatus: $('srStatus'),
     keypad: $('keypad'), btnQuit: $('btnQuit'),
@@ -447,7 +527,8 @@
     summaryMissedWrap: $('summaryMissedWrap'), summaryMissed: $('summaryMissed'),
     summarySlowWrap: $('summarySlowWrap'), summarySlow: $('summarySlow'),
     summarySlowTitle: $('summarySlowTitle'),
-    btnAgain: $('btnAgain'), btnPracticeMissed: $('btnPracticeMissed'), btnBack: $('btnBack'),
+    btnAgain: $('btnAgain'), btnPracticeMissed: $('btnPracticeMissed'),
+    btnPracticeSlow: $('btnPracticeSlow'), btnBack: $('btnBack'),
     btnTheme: $('btnTheme'),
   };
 
@@ -471,6 +552,167 @@
         o.textContent = String(n);
         sel.appendChild(o);
       }
+    });
+  }
+
+  /* ------------------------------------------------------- exact-fact picker */
+
+  /* Every square in the 0–12 grid is a toggle, tinted by how well the fact is
+   * known, so choosing what to drill and seeing what still needs drilling are
+   * the same view. Built once; only the pressed/mastery state is repainted. */
+
+  const MASTERY_WORDS = {
+    new: 'not tried yet', learning: 'still learning',
+    practicing: 'knows it, not quick yet', fluent: 'fluent',
+  };
+
+  let pickerCells = null;
+
+  function headButton(label, title, data, value) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'hd';
+    b.textContent = label;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.dataset[data] = value;
+    return b;
+  }
+
+  function buildPicker() {
+    const t = el.factPicker;
+    pickerCells = {};
+
+    const thead = document.createElement('thead');
+    const hrow = document.createElement('tr');
+    const corner = document.createElement('th');
+    corner.appendChild(headButton('×', 'Pick or clear every fact', 'all', '1'));
+    hrow.appendChild(corner);
+    for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.appendChild(headButton(String(b), 'Pick or clear everything × ' + b, 'col', String(b)));
+      hrow.appendChild(th);
+    }
+    thead.appendChild(hrow);
+    t.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (let a = MIN_FACTOR; a <= MAX_FACTOR; a++) {
+      const tr = document.createElement('tr');
+      const th = document.createElement('th');
+      th.scope = 'row';
+      th.appendChild(headButton(String(a), 'Pick or clear the whole ' + a + ' row', 'row', String(a)));
+      tr.appendChild(th);
+      for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) {
+        const k = key(a, b);
+        const td = document.createElement('td');
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cell';
+        cell.dataset.fact = k;
+        cell.setAttribute('aria-pressed', 'false');
+        pickerCells[k] = cell;
+        td.appendChild(cell);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    t.appendChild(tbody);
+  }
+
+  function paintPicker() {
+    const p = store.prefs;
+    const picked = {};
+    p.customKeys.forEach((k) => { picked[k] = true; });
+
+    Object.keys(pickerCells).forEach((k) => {
+      const cell = pickerCells[k];
+      const [a, b] = parseKey(k);
+      const m = mastery(k);
+      const on = !!picked[k];
+      cell.className = 'cell m-' + m;
+      cell.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const label = a + ' × ' + b + ' = ' + (a * b) + ' — ' + MASTERY_WORDS[m];
+      cell.title = label + (on ? ' — picked' : '');
+      cell.setAttribute('aria-label', label);
+    });
+
+    const n = p.customKeys.length;
+    el.pickerCount.textContent = n
+      ? '· ' + n + ' picked' + (p.custom ? '' : ' (not in use)')
+      : '';
+    el.optCustom.checked = !!p.custom;
+    el.optCustom.disabled = n === 0;
+  }
+
+  function setPicked(keys) {
+    store.prefs.customKeys = sortKeys(keys.filter(validKey));
+    /* Picking facts is the whole point of picking facts: switch to them, and
+     * fall back to the tables the moment the selection is emptied. */
+    store.prefs.custom = store.prefs.customKeys.length > 0;
+    save();
+    syncSetup();
+  }
+
+  function toggleRange(keys) {
+    const have = store.prefs.customKeys;
+    const on = keys.every((k) => have.indexOf(k) !== -1);
+    if (on) setPicked(have.filter((k) => keys.indexOf(k) === -1));
+    else setPicked(have.concat(keys.filter((k) => have.indexOf(k) === -1)));
+  }
+
+  function everyKey() {
+    const keys = [];
+    for (let a = MIN_FACTOR; a <= MAX_FACTOR; a++) {
+      for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) keys.push(key(a, b));
+    }
+    return keys;
+  }
+
+  const FACT_PRESETS = {
+    tables: () => tableKeys(store.prefs),
+    learning: () => everyKey().filter((k) => mastery(k) === 'learning'),
+    slow: () => slowKeys(Infinity),
+    untried: () => tableKeys(store.prefs).filter((k) => mastery(k) === 'new'),
+    none: () => [],
+  };
+
+  function wirePicker() {
+    el.factPicker.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.fact) toggleRange([b.dataset.fact]);
+      else if (b.dataset.row) {
+        const a = Number(b.dataset.row);
+        toggleRange(everyKey().filter((k) => parseKey(k)[0] === a));
+      } else if (b.dataset.col) {
+        const c = Number(b.dataset.col);
+        toggleRange(everyKey().filter((k) => parseKey(k)[1] === c));
+      } else if (b.dataset.all) {
+        toggleRange(everyKey());
+      }
+    });
+
+    el.pickerWrap.querySelectorAll('[data-fpick]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const keys = FACT_PRESETS[b.dataset.fpick]();
+        if (!keys.length && b.dataset.fpick !== 'none') {
+          toast('Nothing to pick there yet');
+          return;
+        }
+        setPicked(keys);
+      });
+    });
+
+    el.optCustom.addEventListener('change', () => {
+      store.prefs.custom = el.optCustom.checked;
+      save(); syncSetup();
+    });
+
+    el.pickerWrap.addEventListener('toggle', () => {
+      store.prefs.pickerOpen = el.pickerWrap.open;
+      save();
     });
   }
 
@@ -499,8 +741,14 @@
 
     const keys = poolKeys(p);
     const now = Date.now();
-    el.poolCount.textContent = keys.length + ' fact' + (keys.length === 1 ? '' : 's') + ' selected';
+    const custom = usingCustom(p);
+    el.poolCount.textContent = keys.length + ' fact' + (keys.length === 1 ? '' : 's') +
+      (custom ? ' hand-picked' : ' selected');
+    el.customNote.hidden = !custom;
+    el.customNote.textContent = 'Your hand-picked facts are in charge — the tables and range ' +
+      'above are ignored until you clear the picks or untick the box below.';
     el.btnStart.disabled = keys.length === 0;
+    paintPicker();
 
     if (p.pick === 'srs') {
       el.pickHelp.textContent =
@@ -824,6 +1072,24 @@
 
     renderHeatmap();
 
+    const slow = slowKeys(8);
+    el.slowLabel.hidden = slow.length === 0;
+    el.btnDrillSlow.disabled = slow.length === 0;
+    el.slowList.innerHTML = '';
+    slow.forEach((k) => {
+      const [a, b] = parseKey(k);
+      const rec = getRecord(k);
+      const chip = document.createElement('span');
+      chip.className = 'fact slow';
+      const secs = (ms) => (ms / 1000).toFixed(1) + 's';
+      chip.innerHTML = a + ' &times; ' + b + ' <small>' + secs(slowMs(rec)) + '</small>';
+      chip.title = a + ' × ' + b + ' = ' + (a * b) + ' — right ' + rec.correct + '/' + rec.seen +
+        ', averaging ' + secs(answerMs(rec)) +
+        (rec.lastMs && rec.lastMs !== answerMs(rec) ? ', last answer ' + secs(rec.lastMs) : '') +
+        ' — ' + secs(overBar(rec)) + ' over the fluency bar';
+      el.slowList.appendChild(chip);
+    });
+
     const weak = weakestKeys(8);
     el.focusLabel.hidden = weak.length === 0;
     el.btnDrillWeak.disabled = weakestKeys(1).length === 0;
@@ -935,6 +1201,7 @@
 
     el.btnStart.addEventListener('click', () => startSession());
     el.btnDrillWeak.addEventListener('click', () => startSession({ keys: weakestKeys(15), label: 'Weakest facts' }));
+    el.btnDrillSlow.addEventListener('click', () => startSession({ keys: slowKeys(15), label: 'Slow facts' }));
 
     el.btnReset.addEventListener('click', () => {
       if (!window.confirm('Erase all progress, including every animal you have earned?')) return;
@@ -1374,12 +1641,12 @@
       el.summaryMissed.appendChild(chip);
     });
 
-    const slowKeys = [];
-    s.slow.forEach((x) => { if (slowKeys.indexOf(x.k) === -1 && missKeys.indexOf(x.k) === -1) slowKeys.push(x.k); });
-    el.summarySlowWrap.hidden = slowKeys.length === 0;
+    const sessionSlow = [];
+    s.slow.forEach((x) => { if (sessionSlow.indexOf(x.k) === -1 && missKeys.indexOf(x.k) === -1) sessionSlow.push(x.k); });
+    el.summarySlowWrap.hidden = sessionSlow.length === 0;
     el.summarySlowTitle.textContent = 'Right, but too slow (over 3 seconds)';
     el.summarySlow.innerHTML = '';
-    slowKeys.forEach((k) => {
+    sessionSlow.forEach((k) => {
       const [a, b] = parseKey(k);
       const rec = getRecord(k);
       const chip = document.createElement('span');
@@ -1390,6 +1657,10 @@
 
     el.btnPracticeMissed.hidden = missKeys.length === 0;
     el.btnPracticeMissed.onclick = () => startSession({ keys: missKeys, label: 'Missed facts' });
+
+    /* Right but slow deserves its own second lap — that is the fluency gap. */
+    el.btnPracticeSlow.hidden = sessionSlow.length === 0;
+    el.btnPracticeSlow.onclick = () => startSession({ keys: sessionSlow, label: 'Slow facts' });
     el.btnAgain.onclick = () => startSession(s.label ? { keys: s.pool, label: s.label } : null);
   }
 
@@ -1430,7 +1701,10 @@
   document.documentElement.style.setProperty('--auto', AUTO_SUBMIT_MS + 'ms');
   checkUnlocks();          // catch up anything earned by an older build
   buildFactorControls();
+  buildPicker();
+  el.pickerWrap.open = !!store.prefs.pickerOpen;
   wireSetup();
+  wirePicker();
   wireDrill();
   wireSummary();
   wireTheme();

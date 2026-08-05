@@ -24,7 +24,8 @@ python3 -m http.server 8000
 ## How to use
 
 1. Pick the **times tables** to work on, and the range of second factors
-   (defaults to the 2–12 tables times 1–12).
+   (defaults to the 2–12 tables times 1–12) — or open **Pick exact facts** and
+   choose square by square (see [Picking exact facts](#picking-exact-facts)).
 2. Choose **Spaced repetition** — the queue is built from facts that are due
    for review plus a capped number of new ones — or **Free drill** for plain
    random questions over everything selected.
@@ -39,6 +40,33 @@ python3 -m http.server 8000
    answering before it empties is what counts as a fluent answer.
 6. The summary leads with how many answers were fluent, then accuracy, median
    time, misses, facts that were right but too slow, and any animals earned.
+
+## Picking exact facts
+
+The tables and range cover the usual case; **Pick exact facts** covers the
+awkward one — the handful of squares that are actually giving you trouble.
+Open it and you get the whole 0×0 to 12×12 grid as toggles, each one tinted by
+how well you know that fact already, so choosing what to drill and seeing what
+still needs drilling are the same view:
+
+| Colour | Meaning |
+|---|---|
+| Grey | Not tried yet |
+| Red | Learning |
+| Amber | Knows it, but not quick yet |
+| Green | Fluent |
+
+Picked squares light up with a blue ring; the rest stay faded. Tap a row or
+column header to take that whole line at once, and the `×` in the corner takes
+(or clears) the lot. Four shortcuts fill the selection for you: **Match the
+tables above**, **Still learning**, **Slow ones**, and **Not tried yet**.
+
+While anything is picked, those facts *are* the pool — the tables and range
+above are ignored, and the panel says so. Untick **Quiz only the facts I pick
+here** to go back to the tables without losing the selection; **Clear** empties
+it. Either way the selection is remembered between visits, and picking facts
+never touches the schedule: hand-picked drills still count, still grade on
+speed, and still feed the same spaced repetition as any other session.
 
 ## Fluency is the goal
 
@@ -168,15 +196,31 @@ schedule:
 | Amber | Knows it, but not quick yet |
 | Green | Fluent — three quick answers in a row |
 
-**Needs work** lists the facts with the worst mix of errors, lapses, and slow
-answers; **Drill my weakest 15 facts** runs a session over just those.
+Two lists sit underneath it, because being wrong and being slow are different
+problems and want different practice:
+
+- **Needs work** — the facts you actually get *wrong*, ranked by the mix of
+  errors and lapses. **Drill my weakest 15 facts** runs a session over those.
+- **Almost fluent — right, but slow** — the facts you get right at least 80% of
+  the time and still have to work out. Nothing is wrong with them except the
+  clock, so they never dominate the list above; **Drill my 15 almost-fluent
+  facts** drills them with the ones nearest the three-second bar first, since
+  those are the ones about to tip over into fluent. Each chip shows the time
+  that put it there.
+
+A fact appears in one list or the other, never both. After a session, the
+summary offers the same split: **Practice the misses** and **Practice the slow
+ones**, built from what just happened.
+
 **Reset progress** erases the schedule and starts over.
 
 ## Notes
 
 - Everything is stored under the `multiplication-fluency:v1` key in local
   storage. Clearing site data resets your schedule, and the schedule doesn't
-  follow you between browsers or devices.
+  follow you between browsers or devices. Writes are batched, then flushed as
+  soon as the tab is hidden or closed, so the last answer of a session survives
+  being backgrounded on a phone.
 - The colour theme follows your system setting, with a manual toggle in the
   header.
 
