@@ -45,8 +45,8 @@ python3 -m http.server 8000
 
 The tables and range cover the usual case; **Pick exact facts** covers the
 awkward one — the handful of squares that are actually giving you trouble.
-Open it and you get the whole 0×0 to 12×12 grid as toggles, each one tinted by
-how well you know that fact already, so choosing what to drill and seeing what
+Open it and you get the 1×1 to 12×12 grid as toggles, each one tinted by how
+well you know that fact already, so choosing what to drill and seeing what
 still needs drilling are the same view:
 
 | Colour | Meaning |
@@ -55,6 +55,11 @@ still needs drilling are the same view:
 | Red | Learning |
 | Amber | Knows it, but not quick yet |
 | Green | Fluent |
+
+The grid starts at 1 — multiplying by zero is a rule rather than a fact worth
+getting fluent at, and a row and column of it is a third of the squares. The
+progress heatmap and the **Multiplied by** range still go down to 0, and any
+zero facts already drilled keep their records.
 
 Picked squares light up with a blue ring; the rest stay faded. Tap a row or
 column header to take that whole line at once, and the `×` in the corner takes

@@ -16,6 +16,12 @@
   const MIN_FACTOR = 0;
   const MAX_FACTOR = 12;
 
+  /* The picker starts at 1: multiplying by zero is a rule, not a fact to get
+   * fluent at, and a row and column of it is a third of the grid. The progress
+   * heatmap and the "multiplied by" range still go down to 0, and any zero
+   * facts already drilled keep their records. */
+  const PICK_MIN = 1;
+
   const MINUTE = 60 * 1000;
   const DAY = 24 * 60 * MINUTE;
 
@@ -75,10 +81,13 @@
         Object.keys(store.facts).forEach((k) => {
           if (typeof store.facts[k].fastStreak !== 'number') store.facts[k].fastStreak = 0;
         });
-        /* Saved by an older build, or edited by hand: keep only real facts. */
+        /* Saved by an older build, or edited by hand: keep only facts the
+         * picker can still show, and don't leave the toggle on with nothing
+         * behind it. Fact records themselves are never dropped here. */
         store.prefs.customKeys = Array.isArray(store.prefs.customKeys)
-          ? store.prefs.customKeys.filter(validKey).filter((k, i, all) => all.indexOf(k) === i)
+          ? store.prefs.customKeys.filter(pickableKey).filter((k, i, all) => all.indexOf(k) === i)
           : [];
+        if (!store.prefs.customKeys.length) store.prefs.custom = false;
       }
     } catch (e) {
       /* corrupt or unavailable storage: start fresh, silently */
@@ -109,13 +118,15 @@
   const key = (a, b) => a + 'x' + b;
   const parseKey = (k) => k.split('x').map(Number);
 
-  function validKey(k) {
+  /* A fact the picker is able to show — and so the only kind a hand-picked
+   * selection may hold. Zero facts saved by an earlier build fall out here. */
+  function pickableKey(k) {
     if (typeof k !== 'string') return false;
     const parts = k.split('x');
     if (parts.length !== 2) return false;
     return parts.every((p) => {
       const n = Number(p);
-      return p !== '' && Number.isInteger(n) && n >= MIN_FACTOR && n <= MAX_FACTOR;
+      return p !== '' && Number.isInteger(n) && n >= PICK_MIN && n <= MAX_FACTOR;
     });
   }
 
@@ -588,7 +599,7 @@
     const corner = document.createElement('th');
     corner.appendChild(headButton('×', 'Pick or clear every fact', 'all', '1'));
     hrow.appendChild(corner);
-    for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) {
+    for (let b = PICK_MIN; b <= MAX_FACTOR; b++) {
       const th = document.createElement('th');
       th.scope = 'col';
       th.appendChild(headButton(String(b), 'Pick or clear everything × ' + b, 'col', String(b)));
@@ -598,13 +609,13 @@
     t.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    for (let a = MIN_FACTOR; a <= MAX_FACTOR; a++) {
+    for (let a = PICK_MIN; a <= MAX_FACTOR; a++) {
       const tr = document.createElement('tr');
       const th = document.createElement('th');
       th.scope = 'row';
       th.appendChild(headButton(String(a), 'Pick or clear the whole ' + a + ' row', 'row', String(a)));
       tr.appendChild(th);
-      for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) {
+      for (let b = PICK_MIN; b <= MAX_FACTOR; b++) {
         const k = key(a, b);
         const td = document.createElement('td');
         const cell = document.createElement('button');
@@ -647,7 +658,9 @@
   }
 
   function setPicked(keys) {
-    store.prefs.customKeys = sortKeys(keys.filter(validKey));
+    /* Presets are drawn from the tables and the schedule, both of which can
+     * still involve zero facts — the filter is what keeps them out. */
+    store.prefs.customKeys = sortKeys(keys.filter(pickableKey));
     /* Picking facts is the whole point of picking facts: switch to them, and
      * fall back to the tables the moment the selection is emptied. */
     store.prefs.custom = store.prefs.customKeys.length > 0;
@@ -662,10 +675,12 @@
     else setPicked(have.concat(keys.filter((k) => have.indexOf(k) === -1)));
   }
 
+  /* Every fact the picker offers — the grid it draws, and the source for the
+   * row, column and select-all toggles. */
   function everyKey() {
     const keys = [];
-    for (let a = MIN_FACTOR; a <= MAX_FACTOR; a++) {
-      for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) keys.push(key(a, b));
+    for (let a = PICK_MIN; a <= MAX_FACTOR; a++) {
+      for (let b = PICK_MIN; b <= MAX_FACTOR; b++) keys.push(key(a, b));
     }
     return keys;
   }
