@@ -77,17 +77,47 @@ function winnerSelect(feeders, className, label) {
   return sel;
 }
 
-function winnerSlot(feeders) {
+// A pair of small number inputs recording each feeder's score for a match.
+// Purely a note attached to the match — it never drives the winner <select>.
+function scorePair(label) {
+  const wrap = el('div', 'score-pair');
+  const top = el('input', 'score');
+  top.type = 'number';
+  top.inputMode = 'numeric';
+  top.min = '0';
+  top.setAttribute('aria-label', `${label} — top score`);
+  const sep = el('span', 'score-sep');
+  sep.textContent = '–';
+  const bottom = el('input', 'score');
+  bottom.type = 'number';
+  bottom.inputMode = 'numeric';
+  bottom.min = '0';
+  bottom.setAttribute('aria-label', `${label} — bottom score`);
+  wrap.append(top, sep, bottom);
+  return wrap;
+}
+
+// Wrap a winner <select> together with its score pair (when scores are
+// tracked) in a plain container. The container is unstyled/unpositioned, so
+// the select's own absolute positioning still resolves against the slot.
+function withScores(sel, trackScores, label) {
+  if (!trackScores) return sel;
+  const wrap = el('div', 'winner-wrap');
+  wrap.append(scorePair(label), sel);
+  return wrap;
+}
+
+function winnerSlot(feeders, trackScores) {
   const s = el('div', 'slot out');
   const sel = winnerSelect(feeders, 'line winner', 'Round winner');
-  s.append(sel);
+  s.append(withScores(sel, trackScores, 'Match'));
   return { node: s, output: sel };
 }
 
 // Wildcard play-in entrant: the lowest seed's slot is decided by a two-way
 // play-in. The seed line becomes a winner <select>; two competitor inputs feed
 // it, drawn as a small fork that extends into the bracket's outer margin.
-function playinLeaf() {
+function playinLeaf(trackScores) {
   const seedSlot = el('div', 'slot entry playin-seed');
 
   const compA = el('input', 'line');
@@ -100,7 +130,7 @@ function playinLeaf() {
   compB.setAttribute('aria-label', 'Play-in competitor');
 
   const seedSel = winnerSelect([compA, compB], 'line winner', 'Play-in winner');
-  seedSlot.append(seedSel);
+  seedSlot.append(withScores(seedSel, trackScores, 'Play-in'));
 
   const slotA = el('div', 'slot playin-comp');
   slotA.append(compA);
@@ -122,7 +152,7 @@ function build(rounds, ctx) {
   if (rounds === 0) {
     const playin = ctx.playins.has(ctx.index);
     ctx.index += 1;
-    return playin ? playinLeaf() : leafSlot();
+    return playin ? playinLeaf(ctx.scores) : leafSlot();
   }
 
   const top = build(rounds - 1, ctx);
@@ -133,7 +163,7 @@ function build(rounds, ctx) {
 
   const connector = el('div', 'connector');
 
-  const win = winnerSlot([top.output, bottom.output]);
+  const win = winnerSlot([top.output, bottom.output], ctx.scores);
   const outcol = el('div', 'outcol');
   outcol.append(win.node);
 
@@ -161,12 +191,10 @@ function loserOf(sel) {
 // optional 3rd-place match between the two beaten semifinalists below it.
 // `left`/`right` are each half's value-holder — for a 3rd-place match they are
 // the semifinal winner selects, whose unchosen side is the beaten semifinalist.
-function finalCenter(left, right, thirdPlace) {
+function finalCenter(left, right, thirdPlace, trackScores) {
   const center = el('div', thirdPlace ? 'final-center with-third' : 'final-center');
-  center.append(placeBox(
-    'Champion',
-    winnerSelect([left, right], 'champion-line winner', 'Champion'),
-  ));
+  const championSel = winnerSelect([left, right], 'champion-line winner', 'Champion');
+  center.append(placeBox('Champion', withScores(championSel, trackScores, 'Championship')));
 
   if (thirdPlace) {
     const sel = winnerSelect(
@@ -175,7 +203,7 @@ function finalCenter(left, right, thirdPlace) {
       'Third place',
     );
     sel.__placeholders = ['(left semifinal loser)', '(right semifinal loser)'];
-    const box = placeBox('3rd Place', sel);
+    const box = placeBox('3rd Place', withScores(sel, trackScores, '3rd place'));
     box.classList.add('third');
     center.append(box);
   }
@@ -237,6 +265,7 @@ export function renderBracket(container, {
   wildcard = false,
   thirdPlace = false,
   orientation = 'horizontal',
+  trackScores = false,
 } = {}) {
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Unsupported bracket size: ${size}`);
@@ -251,7 +280,7 @@ export function renderBracket(container, {
 
   // When wildcards are on, the lowest seed in each quadrant (always index 1 of
   // a quadrant in standard seeding) is decided by a play-in.
-  const ctx = { index: 0, playins: new Set() };
+  const ctx = { index: 0, playins: new Set(), scores: trackScores };
   if (wildcard) {
     const regions = Math.min(4, size / 2);
     const regionSize = size / regions;
@@ -261,6 +290,7 @@ export function renderBracket(container, {
   const bracket = el('div', 'bracket');
   if (wildcard) bracket.classList.add('wildcard');
   if (orientation === 'vertical') bracket.classList.add('vertical');
+  if (trackScores) bracket.classList.add('scored');
 
   const a = build(halfRounds, ctx);
   const b = build(halfRounds, ctx);
@@ -269,6 +299,7 @@ export function renderBracket(container, {
     a.output,
     b.output,
     thirdPlace && supportsThirdPlace(size),
+    trackScores,
   );
 
   if (orientation === 'vertical') {
