@@ -195,6 +195,46 @@
       box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
     }
 
+    /* Score pair: two small number inputs recording each side's score for a
+       match. Purely a note attached to the match — it never drives the
+       winner dropdown. Sits just above the winner line/champion line, on the
+       bracket's shared vertical centre. Only present when "Track scores" is
+       on, which is also when --row-h grows to make room for it. */
+    .bracket.scored { --row-h: 3.75rem; }
+    .score-pair {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(50% + 1.7em);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .champion-box .score-pair { bottom: calc(50% + 2.9em); }
+    .score-pair .score {
+      width: 2.3em;
+      text-align: center;
+      font: inherit;
+      font-size: 0.8rem;
+      padding: 1px 3px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #f8fafc;
+      color: var(--ink);
+    }
+    .score-pair .score:hover { background-color: #eef2ff; }
+    .score-pair .score:focus {
+      outline: none;
+      background-color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+    }
+    .score-pair .score-sep { color: var(--muted); font-size: 0.78rem; }
+    .score-pair .score { -moz-appearance: textfield; }
+    .score-pair .score::-webkit-outer-spin-button,
+    .score-pair .score::-webkit-inner-spin-button { margin: 0; }
+
     /* Winner slots are dropdowns that pick from the two feeding competitors. */
     select.winner {
       appearance: none;
@@ -376,6 +416,13 @@
         border-radius: 0 !important;
         box-shadow: none !important;
       }
+      /* Scores print as plain boxed numbers (or blank boxes to fill in by
+         hand), not the on-screen input chrome. */
+      .score-pair .score {
+        background: transparent !important;
+        border: 1px solid var(--line) !important;
+        box-shadow: none !important;
+      }
       /* Ask the browser to honour line colors. */
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -404,6 +451,7 @@
     </div>
     <label class="toggle"><input type="checkbox" id="wildcard"> Wildcard play-ins</label>
     <label class="toggle" id="thirdplace-label"><input type="checkbox" id="thirdplace"> 3rd place match</label>
+    <label class="toggle"><input type="checkbox" id="scores"> Track scores</label>
     <button id="print" class="btn">Print bracket</button>
     <button id="save" class="btn secondary">Save</button>
     <button id="load" class="btn secondary">Load</button>
@@ -433,6 +481,7 @@
     const wildcardToggle = document.getElementById('wildcard');
     const thirdToggle = document.getElementById('thirdplace');
     const thirdLabel = document.getElementById('thirdplace-label');
+    const scoresToggle = document.getElementById('scores');
     const host = document.getElementById('bracket-host');
     const fileInput = document.getElementById('file');
 
@@ -450,24 +499,29 @@
         wildcard: wildcardToggle.checked,
         thirdPlace: thirdToggle.checked,
         orientation: orientationSelect.value,
+        trackScores: scoresToggle.checked,
       });
     }
 
     // ── State: title + size + toggles + first-round entries + winner picks ──
     // entries = the text inputs (leaves + play-in competitors); picks = each
-    // winner/champion/play-in/3rd-place select's chosen side. Both are in
-    // document order, deterministic for a given size + toggle settings.
+    // winner/champion/play-in/3rd-place select's chosen side; scores = each
+    // match's two score-pair values (empty strings when scores are off, since
+    // the inputs don't exist). All three are in document order, deterministic
+    // for a given size + toggle settings.
     function collectState() {
       return {
         app: 'bracketmaker',
-        version: 5,
+        version: 6,
         size: Number(sizeSelect.value),
         orientation: orientationSelect.value,
         wildcard: wildcardToggle.checked,
         thirdPlace: thirdToggle.checked,
+        trackScores: scoresToggle.checked,
         title: titleInput.value,
         entries: [...host.querySelectorAll('input.line')].map((i) => i.value),
         picks: [...host.querySelectorAll('select.winner')].map((s) => s.value),
+        scores: [...host.querySelectorAll('input.score')].map((i) => i.value),
       };
     }
 
@@ -479,12 +533,15 @@
         ? state.orientation : 'horizontal';
       wildcardToggle.checked = Boolean(state.wildcard);
       thirdToggle.checked = Boolean(state.thirdPlace);
+      scoresToggle.checked = Boolean(state.trackScores);
       draw(); // rebuild at the right size, then fill the (deterministic) slots
       titleInput.value = state.title ?? '';
       const inputs = [...host.querySelectorAll('input.line')];
       (state.entries ?? []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
       const winners = [...host.querySelectorAll('select.winner')];
       (state.picks ?? []).forEach((v, i) => { if (winners[i]) winners[i].value = v; });
+      const scores = [...host.querySelectorAll('input.score')];
+      (state.scores ?? []).forEach((v, i) => { if (scores[i]) scores[i].value = v; });
       syncWinners(host); // refresh the option labels to match restored names
     }
 
@@ -554,6 +611,7 @@
     orientationSelect.addEventListener('change', () => { draw(); saveLocal(); });
     wildcardToggle.addEventListener('change', () => { draw(); saveLocal(); });
     thirdToggle.addEventListener('change', () => { draw(); saveLocal(); });
+    scoresToggle.addEventListener('change', () => { draw(); saveLocal(); });
     host.addEventListener('input', saveLocal);
     host.addEventListener('change', saveLocal); // winner dropdowns
     titleInput.addEventListener('input', saveLocal);
