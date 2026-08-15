@@ -21,11 +21,6 @@
       --line-w:  2.5px;     /* stroke width of all lines */
       --elbow:   9px;       /* corner radius of the connector elbows */
       --third-gap: 2.6rem;  /* space between the champion and 3rd-place boxes */
-      /* Vertical layout: the same three measures, one quarter turn round. */
-      --vcol-w:  120px;     /* width of each slot — one participant's column */
-      --conn-h:  30px;      /* height of a connector row */
-      --plate-h: 1.75rem;   /* height of a name plate (a slot is exactly this) */
-      --playin-reach: 4.5rem; /* margin a vertical play-in fork reaches into */
     }
 
     html, body { height: 100%; }
@@ -284,100 +279,19 @@
     .half.right .connector { transform: scaleX(-1); }
 
     /* ── Vertical layout ───────────────────────────────────────────────────
-       The identical DOM, transposed a quarter turn: the "left" half becomes the
-       top half flowing down, the "right" half mirrors it flowing up, and the
-       champion sits between them. Every rule below just swaps the axis its
-       horizontal counterpart runs along.
-
-       One thing genuinely differs. Horizontally, connectors arrive along the
-       writing line, so a plate needs nothing but that line. Vertically they
-       arrive at the plate's top and bottom edges, so the plate keeps its box
-       outline — including in print — and the lines stay joined to it. */
-    .bracket.vertical {
-      flex-direction: column;
-      min-height: 0;
-      min-width: calc(var(--participants) * var(--vcol-w) / 2);
-    }
-    .bracket.vertical .match         { flex-direction: column; }
-    .bracket.vertical .half.right .match { flex-direction: column-reverse; }
-    .bracket.vertical .feeders       { flex-direction: row; }
-    .bracket.vertical .outcol        { flex-direction: row; }
-
-    /* A slot is exactly as tall as its plate, so connectors meet the plate edge
-       flush; width is what flexes to divide the round between the feeders. */
-    .bracket.vertical .slot,
-    .bracket.vertical .slot.out {
-      min-width: var(--vcol-w);
-      min-height: var(--plate-h);
-    }
-    /* Plates fill their slot's height but are inset a little either side, so
-       neighbours in a round read as separate rather than one long bar. The
-       inset is symmetric, so connectors still meet the plate's midpoint. */
-    .bracket.vertical .line,
-    .bracket.vertical .champion-line {
-      top: 0;
-      bottom: 0;
-      height: auto;
-      left: 3px;
-      right: 3px;
-    }
-
-    /* Connector, transposed: two arms dropping from the feeder plates (at
-       25% / 75%, their midpoints) into a horizontal joiner, then a stub down
-       from its centre to the winner plate. */
-    .bracket.vertical .connector { width: auto; height: var(--conn-h); }
-    .bracket.vertical .connector::before {
-      top: 0;
-      bottom: 50%;
-      left: calc(25% - var(--line-w) / 2);
-      right: calc(25% - var(--line-w) / 2);
-      border-left: var(--line-w) solid var(--line);
-      border-top: none;
-      border-radius: 0 0 var(--elbow) var(--elbow);
-    }
-    .bracket.vertical .connector::after {
-      top: 50%;
-      bottom: 0;
-      left: calc(50% - var(--line-w) / 2);
-      right: auto;
-      width: var(--line-w);
-      border: none;
-      background: var(--line);
-    }
-    /* The bottom half is mirrored top-to-bottom rather than left-to-right. */
-    .bracket.vertical .half.right .connector { transform: scaleY(-1); }
-
-    /* Seeds sit inside the plate, centred on it, on the same side in both
-       halves (the mirroring here is vertical, so it doesn't move them). */
-    .bracket.vertical .seed {
-      top: 50%;
-      bottom: auto;
-      left: 6px;
-      right: auto;
-      transform: translateY(-50%);
-    }
-    .bracket.vertical .slot.seed-right .line {
-      padding-left: 1.9em;
-      padding-right: 8px;
-      text-align: left;
-    }
-
-    /* Play-in forks reach into the margin above the top half / below the
-       bottom half, instead of out to the left and right. */
-    .bracket.vertical.wildcard { padding: var(--playin-reach) 0; }
-    .bracket.vertical .playin {
-      top: auto;
-      bottom: 100%;
-      left: 0;
-      right: 0;
-      flex-direction: column;
-    }
-    .bracket.vertical .half.right .playin {
-      top: 100%;
-      bottom: auto;
-      flex-direction: column-reverse;
-    }
-    .bracket.vertical .playin .slot { min-width: 0; min-height: var(--plate-h); }
+       Same tree, assembled without the mirrored .half wrapper: both subtrees
+       flow the same direction and share one feeders column (see bracket.js),
+       so round 1 lists straight down the left edge and every round narrows
+       rightward to a champion at the right — no centre-out mirroring, no
+       transposed axes. Every element it uses (.match, .feeders, .connector,
+       .outcol, .final-center …) is the same CSS the horizontal layout uses;
+       the only thing that genuinely differs is how much total height the
+       bracket holds, since all `--participants` entries stack in one column
+       instead of splitting into two side-by-side halves. */
+    .bracket.vertical { min-height: calc(var(--participants) * var(--row-h)); }
+    /* Play-in forks only ever reach left here (nothing is mirrored), so the
+       wildcard margin only needs to be reserved on that side. */
+    .bracket.vertical.wildcard { padding: 0 0 0 200px; }
 
     /* Centre column where the two finalists meet. */
     .final-center {
@@ -429,35 +343,6 @@
       text-align: center;
       padding: 0 8px;
     }
-    /* Vertically the centre column becomes a centre *row*: the champion stacks
-       flush between the two finalists, with any 3rd-place box beside it (so the
-       counterweight above becomes a counterweight to its left). Both labels
-       move out to the side, into the empty space either side of the centre. */
-    .bracket.vertical .final-center { flex-direction: row; min-width: 0; }
-    .bracket.vertical .final-center.with-third::before {
-      height: auto;
-      width: calc(var(--vcol-w) + var(--third-gap));
-    }
-    .bracket.vertical .champion-box {
-      min-width: var(--vcol-w);
-      min-height: var(--plate-h);
-    }
-    .bracket.vertical .champion-box.third { margin-top: 0; margin-left: var(--third-gap); }
-    .bracket.vertical .champion-label {
-      top: 50%;
-      bottom: auto;
-      left: auto;
-      right: calc(100% + 10px);
-      transform: translateY(-50%);
-      text-align: right;
-      white-space: nowrap;
-    }
-    .bracket.vertical .champion-box.third .champion-label {
-      left: calc(100% + 10px);
-      right: auto;
-      text-align: left;
-    }
-
     .champion-line:hover { background-color: #eef2ff; }
     .champion-line:focus {
       outline: none;
@@ -490,15 +375,6 @@
         border-bottom: var(--line-w) solid var(--line) !important;
         border-radius: 0 !important;
         box-shadow: none !important;
-      }
-      /* Vertically the connectors meet the plate's edges rather than its
-         writing line, so the outline has to survive printing or the bracket
-         would come out as disconnected stubs. */
-      .bracket.vertical .line,
-      .bracket.vertical .champion-line {
-        border: 1px solid var(--line) !important;
-        border-bottom: var(--line-w) solid var(--line) !important;
-        border-radius: 3px !important;
       }
       /* Ask the browser to honour line colors. */
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

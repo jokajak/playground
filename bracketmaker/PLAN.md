@@ -15,8 +15,10 @@ GitHub Pages (same model as jeopardymaker).
 
 ### Built
 - Single-elimination brackets for **2, 4, 8, 16, 32, 64, or 128** participants.
-- **Horizontal or vertical layout** (toggle): the same bracket flowing across
-  the page or down it.
+- **Horizontal or vertical layout** (toggle): *horizontal* is the two-sided
+  ("March Madness") design below; *vertical* is a single, non-mirrored flow —
+  round 1 listed straight down the left edge, narrowing rightward to one
+  champion on the right.
 - A **title** slot at the top (typed, prints what you enter).
 - **Two-sided ("March Madness") layout**: two halves mirror each other with the
   champion in the centre.
@@ -75,20 +77,33 @@ The smallest bracket (2) has no connectors — each half is a single entrant lin
 that runs straight into the champion in the centre.
 
 ### Orientation
-Because the layout is nothing but nested flexboxes, a vertical bracket is the
-same DOM with every axis swapped — `renderBracket` only adds a `.vertical` class
-and CSS does the rest. `.match` becomes a column, `.feeders` a row, the
-connector's arms and joiner trade places, and the halves mirror top-to-bottom
-(`scaleY(-1)`) instead of left-to-right. Nothing in the builder, the seeding or
-the persisted state knows which way round it is, so switching layouts preserves
-every entry and pick.
+Both layouts build the exact same two `size/2` subtrees (`build(halfRounds)`,
+called twice) and the exact same champion/3rd-place box (`finalCenter`) —
+they only differ in how `renderBracket` assembles those pieces:
 
-One thing genuinely differs. Horizontally, connectors arrive *along* the writing
-line, so a slot needs nothing but that line and can print as a bare rule. In a
-vertical bracket they arrive at the plate's top and bottom edges instead, so the
-plate is sized to fill its slot exactly (`--plate-h`, flush against the
-connectors) and keeps its box outline in print — otherwise the printed sheet
-would be a field of disconnected stubs.
+- **Horizontal** wraps the two subtrees in `.half.left` / `.half.right`, mirrors
+  the right one with CSS (`flex-direction: row-reverse`, the connector flipped
+  `scaleX(-1)`), and puts the champion column between them. This is the
+  standard two-sided March Madness look.
+- **Vertical** skips the mirroring entirely: both subtrees are appended
+  straight into one shared `.feeders` column, exactly like an ordinary
+  `.match` one level up — the only difference from what `build` itself would
+  do is that the champion/3rd-place box replaces the plain winner slot in the
+  final `.outcol`. Nothing is transposed or rotated; it's the same left-to-right
+  flow as horizontal, just not split and mirrored into two halves. That's what
+  makes round 1 read top-to-bottom as one list and the champion land on the
+  right, instead of the two-sided design's left/right convergence.
+
+Because both subtrees and the centre box are identical either way, switching
+orientation only changes assembly, not the underlying tree — seeding, the
+persisted `picks`/`entries` order, and the winner-select wiring are the same
+in both. (A structural change like this redraws the bracket either way, the
+same as changing size or toggling wildcards — typed entries don't survive it,
+by existing design.) A `.bracket.vertical` bracket is also taller than its
+horizontal counterpart for the same participant count: horizontal's two
+halves sit side by side (bracket height ≈ `size/2 * row-h`), while vertical
+stacks all `size` leaves in one column (bracket height ≈ `size * row-h`) — the
+only CSS the vertical mode needs beyond what horizontal already defines.
 
 ### Seeding
 The bracket is split into up to four quadrants (`Math.min(4, size/2)` regions);
@@ -96,9 +111,10 @@ each is numbered `1..quadrantSize` in standard tournament order so the top seed
 meets the lowest seed. A 128-bracket therefore needs a 32-seed region ordering,
 which is derived rather than typed out: each seed in the 16 order is followed by
 its opening opponent (`33 - seed`), extending the existing shape one round
-deeper. Leaf slots in document order are top-to-bottom, left half
-then right half, which maps cleanly onto the quadrants; `assignSeeds` walks them
-and drops a `.seed` label on the outer edge (mirrored for the right half).
+deeper. Leaf slots in document order are top-to-bottom, first subtree then
+second, which maps cleanly onto the quadrants regardless of orientation;
+`assignSeeds` walks them and drops a `.seed` label on the outer edge (mirrored
+only where `.half.right` actually exists, i.e. only in horizontal mode).
 
 ### Wildcard play-ins
 The lowest seed in each quadrant always sits at index 1 of the quadrant in
@@ -132,8 +148,10 @@ conservative landscape printable area (≈960×600 px, safe for US Letter and A4
 the host is sized to the scaled box with `overflow: hidden` so the (unchanged)
 layout box can't spill onto extra pages. `afterprint` restores everything. This
 makes even a 64-bracket with play-ins print as one whole page. The largest
-combinations still fit on one page, but scale past readable to do it: 128, and
-vertical layouts generally, are screen-first.
+combinations still fit on one page, but scale past readable to do it: 128 in
+either layout, and vertical from 16 participants up — its single tall column
+(vs. horizontal's two shorter side-by-side halves) shrinks fast against a
+landscape page's height — are screen-first.
 
 ### Winner selection
 `build` returns each subtree's value-holder (the leaf `<input>` or winner

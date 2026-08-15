@@ -13,7 +13,7 @@ keys: ✅ done · 🔜 planned (agreed, not built) · 💡 idea (needs decisions
 | R2 | Configurable size: 2 / 4 / 8 / 16 / 32 / 64 / 128 | Dropdown selector (minimum 2). A 128-bracket seeds four quadrants of 32. |
 | R3 | Title slot | Typed title at the top of the sheet; prints what you enter. |
 | R4 | Printable, blank brackets | Blank lines for every matchup to fill in by hand. |
-| R5 | Print layout | Controls hidden; landscape `@page`; the bracket is auto-scaled (on `beforeprint`) to fit a single page, so even a 64-bracket with play-ins prints whole without being cut off. The largest sizes still fit on one page but scale down past readable — 128, and vertical layouts generally, are screen-first. |
+| R5 | Print layout | Controls hidden; landscape `@page`; the bracket is auto-scaled (on `beforeprint`) to fit a single page, so even a 64-bracket with play-ins prints whole without being cut off. The largest sizes still fit on one page but scale down past readable — 128 in either layout, and vertical from 16 participants up (it stacks every entry in one tall column rather than splitting into two shorter halves), are screen-first. |
 | R6 | Two-sided ("March Madness") layout | Left half flows right, right half mirrors it, champion in the centre. |
 | R6a | Smooth, connected connectors | Each connector is one rounded shape; arms, joiner and stub are colinear so lines never break. |
 | R7 | Static hosting | No build step; served from the repo root on GitHub Pages. |
@@ -23,7 +23,7 @@ keys: ✅ done · 🔜 planned (agreed, not built) · 💡 idea (needs decisions
 | R10 | Save / load | Auto-saves to the browser (localStorage) so work survives a refresh. **Save** downloads the bracket as a JSON file and **Load** imports one, to move a bracket between devices. **Clear** resets the title and entries. |
 | R11 | Wildcard play-ins | A **Wildcard play-ins** toggle. When on, the lowest seed in each quadrant (the 16-seed in a 64-bracket) is decided by a two-way play-in whose winner faces the 1-seed. The seed slot becomes a winner dropdown; the two competitors are drawn as a small fork in the outer margin and print cleanly. |
 | R12 | 3rd place match (optional) | A **3rd place match** toggle. When on, a consolation line sits below the champion in the centre column: a dropdown between the two beaten semifinalists (the side each half's final did *not* advance), so it tracks the semifinal picks automatically. Disabled for a 2-bracket, which has no semifinals. The champion stays on the bracket's centre line. |
-| R13 | Horizontal / vertical layout | A **Layout** selector. *Horizontal* is the original: halves flow left and right into a centre champion. *Vertical* transposes it — the top half flows down, the bottom half up, the champion between them, any 3rd place beside it. Same DOM, same seeding, same save file; only the flex axis changes. Vertical plates keep their box outline when printed, because connectors meet their edges rather than a writing line. |
+| R13 | Horizontal / vertical layout | A **Layout** selector. *Horizontal* is the original two-sided design: halves flow left and right into a centre champion. *Vertical* is a single, non-mirrored bracket — round 1 lists straight down the left edge, narrowing rightward into one champion (and any 3rd place) on the right. Same seeding, same dropdowns, same save file; only the assembly changes. Switching layout redraws the bracket, same as changing size or wildcards. |
 
 ---
 
