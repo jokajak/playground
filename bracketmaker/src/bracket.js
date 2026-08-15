@@ -1,15 +1,20 @@
 // Bracket Maker — single-elimination bracket generator.
 //
 // Renders a printable single-elimination bracket using a recursive flexbox
-// layout. The recursion guarantees that every connector line is vertically
-// centered between the two slots that feed it, for any power-of-two size,
-// with no magic-number spacing.
+// layout. The recursion guarantees that every connector line is centered
+// between the two slots that feed it, for any power-of-two size, with no
+// magic-number spacing — and, because it is pure flexbox, the same DOM lays
+// out either across the page or down it depending on the orientation class.
 //
 // First-round slots are free-text inputs. Every later round (and the champion)
 // is a <select> that picks the winner from its two feeding competitors; it
 // stores *which side* advanced, so a name typed upstream propagates forward.
 
-const VALID_SIZES = [2, 4, 8, 16, 32, 64];
+const VALID_SIZES = [2, 4, 8, 16, 32, 64, 128];
+
+// A bracket can flow across the page (two halves meeting in the middle) or down
+// it (the same layout transposed a quarter turn).
+const ORIENTATIONS = ['horizontal', 'vertical'];
 
 // A 3rd-place match needs two beaten semifinalists, so it only exists once each
 // half plays a semifinal — i.e. from 4 participants up.
@@ -29,6 +34,11 @@ const SEED_ORDERS = {
   8: [1, 8, 4, 5, 2, 7, 3, 6],
   16: [1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15],
 };
+
+// A 128-bracket splits into quadrants of 32, which extend the 16 layout the
+// standard way: every seed is immediately followed by its opening opponent, so
+// the pair sums to 33 and the existing shape is preserved one round deeper.
+SEED_ORDERS[32] = SEED_ORDERS[16].flatMap((seed) => [seed, 33 - seed]);
 
 function el(tag, className) {
   const node = document.createElement(tag);
@@ -221,9 +231,21 @@ function assignSeeds(bracket, size) {
 // finalist; the left half flows rightward, the right half mirrors it, and the
 // champion sits in the centre between the two finalists. With `thirdPlace` on,
 // a consolation match between the two beaten semifinalists sits below it.
-export function renderBracket(container, { size, wildcard = false, thirdPlace = false }) {
+//
+// `orientation: 'vertical'` transposes the whole thing: the halves flow down
+// and up the page instead of across it. The DOM is identical either way — only
+// the axis each flexbox runs along changes, in CSS.
+export function renderBracket(container, {
+  size,
+  wildcard = false,
+  thirdPlace = false,
+  orientation = 'horizontal',
+} = {}) {
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Unsupported bracket size: ${size}`);
+  }
+  if (!ORIENTATIONS.includes(orientation)) {
+    throw new Error(`Unsupported orientation: ${orientation}`);
   }
 
   const halfRounds = Math.log2(size) - 1; // rounds within one half
@@ -239,7 +261,9 @@ export function renderBracket(container, { size, wildcard = false, thirdPlace = 
     for (let r = 0; r < regions; r += 1) ctx.playins.add(r * regionSize + 1);
   }
 
-  const bracket = el('div', wildcard ? 'bracket wildcard' : 'bracket');
+  const bracket = el('div', 'bracket');
+  if (wildcard) bracket.classList.add('wildcard');
+  if (orientation === 'vertical') bracket.classList.add('vertical');
 
   const left = build(halfRounds, ctx);
   const right = build(halfRounds, ctx);
@@ -267,4 +291,4 @@ export function renderBracket(container, { size, wildcard = false, thirdPlace = 
   container.append(bracket);
 }
 
-export { VALID_SIZES };
+export { VALID_SIZES, ORIENTATIONS };

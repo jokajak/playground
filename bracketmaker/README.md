@@ -1,7 +1,7 @@
 # Bracket Maker
 
 Generate printable single-elimination tournament brackets. Pick a size
-(2, 4, 8, 16, 32, or 64 participants), add a title, and either type entries in
+(2 to 128 participants) and a layout, add a title, and either type entries in
 or print a blank bracket to fill in by hand. No server, no build step, no
 accounts.
 
@@ -25,16 +25,18 @@ bracket won't render, due to browser module-loading rules.)
 
 ## How to use
 
-1. Choose the number of **Participants** (2 / 4 / 8 / 16 / 32 / 64).
-2. Type a **title** for the bracket (optional).
-3. Type names into the slots, or leave them blank to fill in by hand.
-4. Click **Print bracket** — it automatically scales the whole bracket onto a
+1. Choose the number of **Participants** (2 / 4 / 8 / 16 / 32 / 64 / 128).
+2. Choose a **Layout** — Horizontal or Vertical (see below).
+3. Type a **title** for the bracket (optional).
+4. Type names into the slots, or leave them blank to fill in by hand.
+5. Click **Print bracket** — it automatically scales the whole bracket onto a
    single landscape page. Leave the print dialog's scale on **Default / 100%**
    (no need to choose "Fit to page").
 
 The bracket is two-sided (March Madness style) with the champion in the centre,
 and the first-round slots are numbered with standard tournament **seeds** within
-each quadrant (top seed vs lowest seed).
+each quadrant (top seed vs lowest seed). A 128-bracket splits into four
+quadrants of 32.
 
 Type the competitors into the first-round slots; each later round (and the
 champion) is a **dropdown that picks the winner** from its two feeding
@@ -43,6 +45,20 @@ flows forward automatically. On screen each slot is a visible, editable field;
 when printing, the field boxes and dropdown arrows drop away and only the writing
 lines remain — so you can fill it in on screen or print a blank sheet and write
 players in by hand.
+
+### Layout: horizontal or vertical
+
+**Horizontal** is the classic sheet: the two halves flow left and right into the
+champion in the middle. **Vertical** turns the same bracket a quarter turn — the
+top half flows down the page, the bottom half flows up to meet it, the champion
+sits between them and any 3rd place match sits beside it. Everything else is
+identical: same seeds, same dropdowns, same save file. Switching layouts keeps
+your entries and picks.
+
+Vertical brackets get wide rather than tall (one column per participant), so
+they suit a wide screen or a long sideways scroll. Note that the big
+combinations — anything at 128, and vertical layouts generally — still print
+onto one page, but scaled far past readable. Those are screen-first.
 
 ### Wildcard play-ins
 
@@ -67,7 +83,7 @@ To move a bracket between devices, use **Save** (downloads a `.json` file) and
 
 ## Roadmap
 
-- [x] Configurable single-elimination brackets (2/4/8/16/32/64)
+- [x] Configurable single-elimination brackets (2/4/8/16/32/64/128)
 - [x] Title slot
 - [x] Print-friendly layout
 - [x] Two-sided (March Madness) layout
@@ -77,6 +93,7 @@ To move a bracket between devices, use **Save** (downloads a `.json` file) and
 - [x] Save / load brackets (auto-save + JSON file export/import)
 - [x] Wildcard play-ins for the lowest seed in each quadrant
 - [x] Optional 3rd place match between the beaten semifinalists
+- [x] Horizontal or vertical layout
 
 See `REQUIREMENTS.md` for the full status checklist.
 
