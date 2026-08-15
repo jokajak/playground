@@ -48,17 +48,20 @@ players in by hand.
 
 ### Layout: horizontal or vertical
 
-**Horizontal** is the classic sheet: the two halves flow left and right into the
-champion in the middle. **Vertical** turns the same bracket a quarter turn — the
-top half flows down the page, the bottom half flows up to meet it, the champion
-sits between them and any 3rd place match sits beside it. Everything else is
-identical: same seeds, same dropdowns, same save file. Switching layouts keeps
-your entries and picks.
+**Horizontal** is the classic sheet: two halves flow left and right into the
+champion in the middle (the two-sided "March Madness" look). **Vertical** is a
+single, non-mirrored bracket — round 1 is listed straight down the left edge,
+and every round narrows rightward into one champion box (with any 3rd place
+match beside it) on the right, the way most bracket-generator sites lay out a
+single-elimination sheet. Everything else is identical: same seeds, same
+dropdowns, same save file — only the assembly changes.
 
-Vertical brackets get wide rather than tall (one column per participant), so
-they suit a wide screen or a long sideways scroll. Note that the big
-combinations — anything at 128, and vertical layouts generally — still print
-onto one page, but scaled far past readable. Those are screen-first.
+Switching layout redraws the bracket (same as changing size or toggling
+wildcards), so it clears whatever you've typed. Vertical brackets get tall
+rather than wide (one row per participant, all in a single column instead of
+two shorter halves), so anything past 16 participants suits a wide screen or a
+long scroll rather than print — it still fits onto a single printed page, just
+scaled small. 128 is screen-first in either layout.
 
 ### Wildcard play-ins
 
