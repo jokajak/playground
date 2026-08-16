@@ -57,7 +57,8 @@ single-elimination sheet. Everything else is identical: same seeds, same
 dropdowns, same save file — only the assembly changes.
 
 Switching layout redraws the bracket (same as changing size or toggling
-wildcards), so it clears whatever you've typed. Vertical brackets get tall
+wildcards), but your entries, picks, scores and times come with it — see
+[Saving your work](#saving-your-work). Vertical brackets get tall
 rather than wide (one row per participant, all in a single column instead of
 two shorter halves), so anything past 16 participants suits a wide screen or a
 long scroll rather than print — it still fits onto a single printed page, just
@@ -78,11 +79,32 @@ advance — so it follows your semifinal picks automatically; just choose which 
 them takes 3rd. It prints with the champion in the centre of the sheet. (A
 2-participant bracket has no semifinals, so the toggle is disabled there.)
 
+### Match date & time
+
+Toggle **Match date & time** to add a date-and-time picker to every match,
+below its winner line — including play-ins, the championship and the 3rd place
+match. It's just a note attached to the match: it's saved, loaded and printed
+with everything else and never affects who advances. Times you fill in print as
+plain text; ones you leave empty print as a blank line, so you can print the
+schedule half-filled and pencil in the rest. It pairs with **Track scores** —
+scores sit above each winner line, times below.
+
 ### Saving your work
 
 Your bracket is saved in the browser automatically, so a refresh won't lose it.
 To move a bracket between devices, use **Save** (downloads a `.json` file) and
 **Load** (imports one). **Clear** empties the title and entries.
+
+Changing **Participants**, **Layout** or any toggle rebuilds the bracket, but
+keeps what you've already typed — each slot holds its contents through the
+rebuild. The only things that can't survive are values with nowhere left to go:
+entries past the end of a smaller bracket (shrinking 32 → 16 drops the last 16,
+and growing back doesn't bring them home), and a seed's typed name when you
+switch that seed to a wildcard play-in, since the text box becomes a dropdown.
+
+If your browser refuses to store anything — a private window, blocked site data,
+or storage that's full — the page replaces the auto-save hint with a warning, so
+you know to use **Save** instead of trusting a refresh.
 
 ## Roadmap
 
@@ -97,6 +119,9 @@ To move a bracket between devices, use **Save** (downloads a `.json` file) and
 - [x] Wildcard play-ins for the lowest seed in each quadrant
 - [x] Optional 3rd place match between the beaten semifinalists
 - [x] Horizontal or vertical layout
+- [x] Optional score tracking per match
+- [x] Optional date & time per match
+- [x] Keep entries when resizing, switching layout or toggling options
 
 See `REQUIREMENTS.md` for the full status checklist.
 

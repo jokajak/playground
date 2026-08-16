@@ -103,6 +103,9 @@
     .toggle input:disabled { cursor: default; }
 
     .hint { font-size: 0.78rem; color: var(--muted); align-self: center; max-width: 26rem; }
+    /* Shown in place of the reassuring hint when this browser won't store the
+       bracket, so the page never claims a save it didn't make. */
+    .hint.warn { color: #b45309; font-weight: 600; }
 
     /* ── Sheet (the printable area) ───────────────────────────────────────── */
     .sheet-scroll { flex: 1; overflow: auto; padding: 28px; }
@@ -234,6 +237,37 @@
     .score-pair .score { -moz-appearance: textfield; }
     .score-pair .score::-webkit-outer-spin-button,
     .score-pair .score::-webkit-inner-spin-button { margin: 0; }
+
+    /* Match date & time: a datetime-local input in the free space *below* the
+       winner line (scores take the space above, so both can be on at once).
+       Like scores it is only a note on the match, and only present when
+       "Match date & time" is on — which is also when --row-h grows to fit it. */
+    .bracket.timed { --row-h: 3.75rem; --third-gap: 3.4rem; }
+    .bracket.scored.timed { --row-h: 4.75rem; }
+    .when {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(50% + 5px);
+      width: 100%;
+      min-width: 0;
+      font: inherit;
+      font-size: 0.68rem;
+      color: var(--muted);
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+    .when:hover { background-color: #eef2ff; }
+    .when:focus {
+      outline: none;
+      background-color: #fff;
+      color: var(--ink);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+    }
+    .when::-webkit-calendar-picker-indicator { margin-left: 2px; opacity: 0.55; cursor: pointer; }
 
     /* Winner slots are dropdowns that pick from the two feeding competitors. */
     select.winner {
@@ -423,6 +457,21 @@
         border: 1px solid var(--line) !important;
         box-shadow: none !important;
       }
+      /* Times print as plain text on a writing line. An empty datetime input
+         still paints the browser's own "mm/dd/yyyy, --:--" placeholder, so
+         fitForPrint marks the empty ones and we hide just their text — leaving
+         a blank line to write the time on by hand. */
+      .when {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid var(--line) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        color: var(--ink) !important;
+        padding: 0 2px !important;
+      }
+      .when.blank { color: transparent !important; }
+      .when::-webkit-calendar-picker-indicator { display: none !important; }
       /* Ask the browser to honour line colors. */
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -452,13 +501,17 @@
     <label class="toggle"><input type="checkbox" id="wildcard"> Wildcard play-ins</label>
     <label class="toggle" id="thirdplace-label"><input type="checkbox" id="thirdplace"> 3rd place match</label>
     <label class="toggle"><input type="checkbox" id="scores"> Track scores</label>
+    <label class="toggle"><input type="checkbox" id="times"> Match date &amp; time</label>
     <button id="print" class="btn">Print bracket</button>
     <button id="save" class="btn secondary">Save</button>
     <button id="load" class="btn secondary">Load</button>
     <button id="clear" class="btn secondary">Clear</button>
     <input id="file" type="file" accept="application/json,.json" hidden>
-    <span class="hint">Your bracket is saved in this browser automatically. Use
+    <span class="hint" id="hint">Your bracket is saved in this browser automatically. Use
       <strong>Save</strong>/<strong>Load</strong> to move it between devices.</span>
+    <span class="hint warn" id="storage-warning" hidden>⚠ This browser isn’t saving your
+      bracket — storage is unavailable or full, so a refresh will lose it. Use
+      <strong>Save</strong> to download a copy.</span>
   </div>
 
   <div class="sheet-scroll">
@@ -482,8 +535,11 @@
     const thirdToggle = document.getElementById('thirdplace');
     const thirdLabel = document.getElementById('thirdplace-label');
     const scoresToggle = document.getElementById('scores');
+    const timesToggle = document.getElementById('times');
     const host = document.getElementById('bracket-host');
     const fileInput = document.getElementById('file');
+    const hintEl = document.getElementById('hint');
+    const warningEl = document.getElementById('storage-warning');
 
     // A 2-bracket has no semifinals, so it has nobody to play for 3rd place.
     function syncControls() {
@@ -500,25 +556,56 @@
         thirdPlace: thirdToggle.checked,
         orientation: orientationSelect.value,
         trackScores: scoresToggle.checked,
+        trackTimes: timesToggle.checked,
       });
     }
 
-    // ── State: title + size + toggles + first-round entries + winner picks ──
-    // entries = the text inputs (leaves + play-in competitors); picks = each
-    // winner/champion/play-in/3rd-place select's chosen side; scores = each
-    // match's two score-pair values (empty strings when scores are off, since
-    // the inputs don't exist). All three are in document order, deterministic
-    // for a given size + toggle settings.
+    // Rebuild the bracket while keeping what still fits. Every field carries a
+    // stable data-key naming its place in the tree (see KEYS in bracket.js), so
+    // carrying values across by key preserves each slot's contents through a
+    // resize, a layout flip or a toggle. Values whose slot no longer exists
+    // (entries past the end of a smaller bracket) are the only thing dropped.
+    function redraw() {
+      const kept = readFields();
+      draw();
+      writeFields(kept);
+      syncWinners(host); // option labels follow the carried-over names
+      saveLocal();
+    }
+
+    function readFields() {
+      const fields = {};
+      host.querySelectorAll('[data-key]')
+        .forEach((node) => { fields[node.dataset.key] = node.value; });
+      return fields;
+    }
+
+    function writeFields(fields) {
+      if (!fields || typeof fields !== 'object') return;
+      host.querySelectorAll('[data-key]').forEach((node) => {
+        const value = fields[node.dataset.key];
+        if (typeof value === 'string') node.value = value;
+      });
+    }
+
+    // ── State: title + size + toggles + every field on the bracket ──────────
+    // `fields` maps each field's stable data-key to its value, covering the
+    // entries, winner picks, scores and match times in one go. Saves through
+    // version 6 instead carried three document-order arrays; those are still
+    // written (so a file saved here still loads in an older copy of the page)
+    // and still read, in applyState, for brackets saved before this version.
     function collectState() {
       return {
         app: 'bracketmaker',
-        version: 6,
+        version: 7,
         size: Number(sizeSelect.value),
         orientation: orientationSelect.value,
         wildcard: wildcardToggle.checked,
         thirdPlace: thirdToggle.checked,
         trackScores: scoresToggle.checked,
+        trackTimes: timesToggle.checked,
         title: titleInput.value,
+        fields: readFields(),
         entries: [...host.querySelectorAll('input.line')].map((i) => i.value),
         picks: [...host.querySelectorAll('select.winner')].map((s) => s.value),
         scores: [...host.querySelectorAll('input.score')].map((i) => i.value),
@@ -534,25 +621,51 @@
       wildcardToggle.checked = Boolean(state.wildcard);
       thirdToggle.checked = Boolean(state.thirdPlace);
       scoresToggle.checked = Boolean(state.trackScores);
-      draw(); // rebuild at the right size, then fill the (deterministic) slots
+      timesToggle.checked = Boolean(state.trackTimes);
+      draw(); // rebuild at the right size, then fill the slots
       titleInput.value = state.title ?? '';
-      const inputs = [...host.querySelectorAll('input.line')];
-      (state.entries ?? []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
-      const winners = [...host.querySelectorAll('select.winner')];
-      (state.picks ?? []).forEach((v, i) => { if (winners[i]) winners[i].value = v; });
-      const scores = [...host.querySelectorAll('input.score')];
-      (state.scores ?? []).forEach((v, i) => { if (scores[i]) scores[i].value = v; });
+      if (state.fields && typeof state.fields === 'object') {
+        writeFields(state.fields);
+      } else {
+        // Pre-v7 save: three arrays, in document order for that size + toggles.
+        const inputs = [...host.querySelectorAll('input.line')];
+        (state.entries ?? []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+        const winners = [...host.querySelectorAll('select.winner')];
+        (state.picks ?? []).forEach((v, i) => { if (winners[i]) winners[i].value = v; });
+        const scores = [...host.querySelectorAll('input.score')];
+        (state.scores ?? []).forEach((v, i) => { if (scores[i]) scores[i].value = v; });
+      }
       syncWinners(host); // refresh the option labels to match restored names
     }
 
     // ── Auto-save to this browser ───────────────────────────────────────────
+    // Storage can be missing entirely (private windows, blocked site data) or
+    // simply full. Either way the auto-save silently does nothing, so say so
+    // rather than leaving the hint promising a save that isn't happening.
+    let storageBroken = false;
+    function reportStorageBroken() {
+      if (storageBroken) return;
+      storageBroken = true;
+      hintEl.hidden = true;
+      warningEl.hidden = false;
+    }
     function saveLocal() {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState())); }
-      catch { /* storage full or unavailable — ignore */ }
+      catch { reportStorageBroken(); }
     }
     function loadLocal() {
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); }
       catch { return null; }
+    }
+    // Probe up front so the warning is visible before any work is lost, not
+    // only once the first edit fails to save. Touching `localStorage` at all
+    // throws when site data is blocked, so the read is inside the try too.
+    function checkStorage() {
+      try {
+        const probe = `${STORAGE_KEY}:probe`;
+        localStorage.setItem(probe, '1');
+        localStorage.removeItem(probe);
+      } catch { reportStorageBroken(); }
     }
 
     // ── Save / load to a JSON file ──────────────────────────────────────────
@@ -584,6 +697,11 @@
     // so we also size the host to the scaled box and clip it.
     function fitForPrint() {
       resetPrint();
+      // An empty datetime input prints the browser's own "mm/dd/yyyy, --:--"
+      // placeholder; mark those so print CSS can hide the text and leave a
+      // blank line to write on.
+      host.querySelectorAll('input.when')
+        .forEach((i) => i.classList.toggle('blank', i.value === ''));
       const bracket = host.firstElementChild;
       if (!bracket) return;
       const w = bracket.scrollWidth;
@@ -598,6 +716,8 @@
       host.style.overflow = 'hidden';
     }
     function resetPrint() {
+      host.querySelectorAll('input.when.blank')
+        .forEach((i) => i.classList.remove('blank'));
       const bracket = host.firstElementChild;
       if (bracket) bracket.style.transform = '';
       host.style.width = '';
@@ -607,11 +727,12 @@
     window.addEventListener('beforeprint', fitForPrint);
     window.addEventListener('afterprint', resetPrint);
 
-    sizeSelect.addEventListener('change', () => { draw(); saveLocal(); });
-    orientationSelect.addEventListener('change', () => { draw(); saveLocal(); });
-    wildcardToggle.addEventListener('change', () => { draw(); saveLocal(); });
-    thirdToggle.addEventListener('change', () => { draw(); saveLocal(); });
-    scoresToggle.addEventListener('change', () => { draw(); saveLocal(); });
+    sizeSelect.addEventListener('change', redraw);
+    orientationSelect.addEventListener('change', redraw);
+    wildcardToggle.addEventListener('change', redraw);
+    thirdToggle.addEventListener('change', redraw);
+    scoresToggle.addEventListener('change', redraw);
+    timesToggle.addEventListener('change', redraw);
     host.addEventListener('input', saveLocal);
     host.addEventListener('change', saveLocal); // winner dropdowns
     titleInput.addEventListener('input', saveLocal);
@@ -626,6 +747,7 @@
     });
 
     // ── Restore the last bracket, or start fresh ────────────────────────────
+    checkStorage();
     const saved = loadLocal();
     if (saved) applyState(saved); else draw();
   </script>

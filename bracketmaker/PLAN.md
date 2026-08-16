@@ -96,10 +96,10 @@ they only differ in how `renderBracket` assembles those pieces:
 
 Because both subtrees and the centre box are identical either way, switching
 orientation only changes assembly, not the underlying tree — seeding, the
-persisted `picks`/`entries` order, and the winner-select wiring are the same
-in both. (A structural change like this redraws the bracket either way, the
-same as changing size or toggling wildcards — typed entries don't survive it,
-by existing design.) A `.bracket.vertical` bracket is also taller than its
+persisted field keys and the winner-select wiring are the same in both. (A
+structural change like this redraws the bracket either way, the same as
+changing size or toggling wildcards; because every field is keyed by its place
+in the tree, the redraw carries typed entries across — see Persistence.) A `.bracket.vertical` bracket is also taller than its
 horizontal counterpart for the same participant count: horizontal's two
 halves sit side by side (bracket height ≈ `size/2 * row-h`), while vertical
 stacks all `size` leaves in one column (bracket height ≈ `size * row-h`) — the
@@ -161,12 +161,30 @@ name, and `syncWinners` refreshes every select's option labels — so typing or
 re-picking upstream flows forward without copying strings around.
 
 ### Persistence
-The state is `{ size, orientation, wildcard, thirdPlace, title, entries[], picks[] }`:
-`entries` are the leaf input values and `picks` are each winner / champion /
-3rd-place select's chosen side, both in document order — deterministic for a
-given size and toggle combination, so re-rendering and re-filling
-round-trips losslessly. It auto-saves to `localStorage` on every edit and can be
-exported/imported as a JSON file.
+The state is `{ size, orientation, wildcard, thirdPlace, trackScores, trackTimes,
+title, fields{} }`. `fields` maps every value-holding element's `data-key` to its
+value, covering entries, winner picks, scores and match times in one map.
+
+The keys name a slot's **place in the tree**, not its place in the document:
+`e3` is leaf 3, `w2:8` the winner of the 2-round match over leaves 8–11,
+`champion` / `third` the centre boxes, with `#s0` / `#s1` / `#t` suffixes for a
+match's scores and time (see KEYS in `bracket.js`). That choice is what makes a
+redraw non-destructive: because both orientations build the same tree and a leaf
+keeps its index as the bracket grows, re-rendering and re-filling by key carries
+the bracket's contents across a resize, a layout flip or a toggle. Only values
+whose slot no longer exists are dropped. The same map is the save format, so a
+file saved from one layout opens in the other.
+
+Versions ≤ 6 instead stored `entries[]` / `picks[]` / `scores[]` as document-order
+arrays, which round-tripped only for an identical size and toggle combination —
+and left nothing to re-fill from when the shape changed. Those arrays are still
+read (for old saves) and still written alongside `fields` (so a file saved here
+still opens in an older copy of the page).
+
+It auto-saves to `localStorage` on every edit and can be exported/imported as a
+JSON file. Storage can be absent (private windows, blocked site data) or full;
+both surface as a warning in the controls rather than a silent no-op, since the
+page otherwise claims work is being saved when it isn't.
 
 ---
 
@@ -175,7 +193,7 @@ exported/imported as a JSON file.
 - `index.html` — controls (size, title, print, save/load), the printable sheet,
   styles, and a small module that wires the controls to `renderBracket`.
 - `src/bracket.js` — `renderBracket(container, { size, orientation, wildcard,
-  thirdPlace })` and the recursive builder.
+  thirdPlace, trackScores, trackTimes })` and the recursive builder.
 
 ---
 

@@ -8,6 +8,12 @@
 // First-round slots are free-text inputs. Every later round (and the champion)
 // is a <select> that picks the winner from its two feeding competitors; it
 // stores *which side* advanced, so a name typed upstream propagates forward.
+//
+// Every value-holding field carries a stable `data-key` describing its position
+// in the tree rather than its position in the document (see KEYS below). The
+// page saves and restores state by those keys, so redrawing the bracket — after
+// a resize, a layout flip or a toggle — keeps whatever is still meaningful
+// instead of starting over.
 
 const VALID_SIZES = [2, 4, 8, 16, 32, 64, 128];
 
@@ -42,6 +48,21 @@ const SEED_ORDERS = {
 // the pair sums to 33 and the existing shape is preserved one round deeper.
 SEED_ORDERS[32] = SEED_ORDERS[16].flatMap((seed) => [seed, 33 - seed]);
 
+// KEYS — the `data-key` naming scheme. Each key names a position in the
+// tournament tree, so the same slot keeps its key across a redraw:
+//
+//   e3          first-round entrant, leaf 3 (leaves count 0..size-1)
+//   e3a / e3b   the two competitors of leaf 3's play-in fork
+//   p3          leaf 3's play-in winner
+//   w2:8        winner of the 2-round match covering leaves 8..11
+//   champion    the champion, third — the 3rd place match
+//   <key>#s0    that match's top score,  <key>#s1 its bottom score
+//   <key>#t     that match's date & time
+//
+// Round-winner keys are (rounds, first leaf) rather than a running counter, so
+// a match keeps its key whichever layout it is assembled into — the two
+// orientations build the same tree — and a leaf keeps its key when the bracket
+// grows or a toggle changes the field mix.
 function el(tag, className) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -50,11 +71,12 @@ function el(tag, className) {
 
 // First-round entrant: a free-text input. Returns { node, output }, where
 // `output` is the value-holding element the winner above reads from.
-function leafSlot() {
+function leafSlot(idx) {
   const s = el('div', 'slot entry');
   const input = el('input', 'line');
   input.type = 'text';
   input.autocomplete = 'off';
+  input.dataset.key = `e${idx}`;
   input.setAttribute('aria-label', 'Participant');
   s.append(input);
   return { node: s, output: input };
@@ -63,8 +85,9 @@ function leafSlot() {
 // Winner of a match: a <select> that picks between its two feeders. The chosen
 // option's value is the feeder index ("0"/"1"); the displayed name resolves
 // live from that feeder, so upstream edits flow forward.
-function winnerSelect(feeders, className, label) {
+function winnerSelect(feeders, className, label, key) {
   const sel = el('select', className);
+  sel.dataset.key = key;
   sel.setAttribute('aria-label', label);
   const blank = el('option');
   blank.value = '';
@@ -79,12 +102,13 @@ function winnerSelect(feeders, className, label) {
 
 // A pair of small number inputs recording each feeder's score for a match.
 // Purely a note attached to the match — it never drives the winner <select>.
-function scorePair(label) {
+function scorePair(key, label) {
   const wrap = el('div', 'score-pair');
   const top = el('input', 'score');
   top.type = 'number';
   top.inputMode = 'numeric';
   top.min = '0';
+  top.dataset.key = `${key}#s0`;
   top.setAttribute('aria-label', `${label} — top score`);
   const sep = el('span', 'score-sep');
   sep.textContent = '–';
@@ -92,45 +116,63 @@ function scorePair(label) {
   bottom.type = 'number';
   bottom.inputMode = 'numeric';
   bottom.min = '0';
+  bottom.dataset.key = `${key}#s1`;
   bottom.setAttribute('aria-label', `${label} — bottom score`);
   wrap.append(top, sep, bottom);
   return wrap;
 }
 
-// Wrap a winner <select> together with its score pair (when scores are
-// tracked) in a plain container. The container is unstyled/unpositioned, so
-// the select's own absolute positioning still resolves against the slot.
-function withScores(sel, trackScores, label) {
-  if (!trackScores) return sel;
+// When a match is played: a datetime-local input below the winner line. Like
+// the score pair it is purely a note attached to the match. Left empty it
+// prints as a blank line to write a time on by hand (index.html blanks the
+// browser's mm/dd/yyyy placeholder for printing).
+function whenInput(key, label) {
+  const input = el('input', 'when');
+  input.type = 'datetime-local';
+  input.dataset.key = `${key}#t`;
+  input.setAttribute('aria-label', `${label} — date and time`);
+  return input;
+}
+
+// Wrap a winner <select> together with the optional notes attached to its match
+// (scores above, date & time below) in a plain container. The container is
+// unstyled/unpositioned, so each child's own absolute positioning still
+// resolves against the slot.
+function matchFields(sel, ctx, key, label) {
+  if (!ctx.scores && !ctx.times) return sel;
   const wrap = el('div', 'winner-wrap');
-  wrap.append(scorePair(label), sel);
+  if (ctx.scores) wrap.append(scorePair(key, label));
+  wrap.append(sel);
+  if (ctx.times) wrap.append(whenInput(key, label));
   return wrap;
 }
 
-function winnerSlot(feeders, trackScores) {
+function winnerSlot(feeders, ctx, key) {
   const s = el('div', 'slot out');
-  const sel = winnerSelect(feeders, 'line winner', 'Round winner');
-  s.append(withScores(sel, trackScores, 'Match'));
+  const sel = winnerSelect(feeders, 'line winner', 'Round winner', key);
+  s.append(matchFields(sel, ctx, key, 'Match'));
   return { node: s, output: sel };
 }
 
 // Wildcard play-in entrant: the lowest seed's slot is decided by a two-way
 // play-in. The seed line becomes a winner <select>; two competitor inputs feed
 // it, drawn as a small fork that extends into the bracket's outer margin.
-function playinLeaf(trackScores) {
+function playinLeaf(ctx, idx) {
   const seedSlot = el('div', 'slot entry playin-seed');
 
   const compA = el('input', 'line');
   compA.type = 'text';
   compA.autocomplete = 'off';
+  compA.dataset.key = `e${idx}a`;
   compA.setAttribute('aria-label', 'Play-in competitor');
   const compB = el('input', 'line');
   compB.type = 'text';
   compB.autocomplete = 'off';
+  compB.dataset.key = `e${idx}b`;
   compB.setAttribute('aria-label', 'Play-in competitor');
 
-  const seedSel = winnerSelect([compA, compB], 'line winner', 'Play-in winner');
-  seedSlot.append(withScores(seedSel, trackScores, 'Play-in'));
+  const seedSel = winnerSelect([compA, compB], 'line winner', 'Play-in winner', `p${idx}`);
+  seedSlot.append(matchFields(seedSel, ctx, `p${idx}`, 'Play-in'));
 
   const slotA = el('div', 'slot playin-comp');
   slotA.append(compA);
@@ -149,10 +191,11 @@ function playinLeaf(trackScores) {
 // is the value-holder (input or select) representing this subtree's winner.
 // `ctx` tracks the running leaf index and which leaves are play-ins.
 function build(rounds, ctx) {
+  const start = ctx.index; // first leaf under this subtree — half of its key
   if (rounds === 0) {
-    const playin = ctx.playins.has(ctx.index);
+    const playin = ctx.playins.has(start);
     ctx.index += 1;
-    return playin ? playinLeaf(ctx.scores) : leafSlot();
+    return playin ? playinLeaf(ctx, start) : leafSlot(start);
   }
 
   const top = build(rounds - 1, ctx);
@@ -163,7 +206,7 @@ function build(rounds, ctx) {
 
   const connector = el('div', 'connector');
 
-  const win = winnerSlot([top.output, bottom.output], ctx.scores);
+  const win = winnerSlot([top.output, bottom.output], ctx, `w${rounds}:${start}`);
   const outcol = el('div', 'outcol');
   outcol.append(win.node);
 
@@ -191,19 +234,25 @@ function loserOf(sel) {
 // optional 3rd-place match between the two beaten semifinalists below it.
 // `left`/`right` are each half's value-holder — for a 3rd-place match they are
 // the semifinal winner selects, whose unchosen side is the beaten semifinalist.
-function finalCenter(left, right, thirdPlace, trackScores) {
+function finalCenter(left, right, thirdPlace, ctx) {
   const center = el('div', thirdPlace ? 'final-center with-third' : 'final-center');
-  const championSel = winnerSelect([left, right], 'champion-line winner', 'Champion');
-  center.append(placeBox('Champion', withScores(championSel, trackScores, 'Championship')));
+  const championSel = winnerSelect(
+    [left, right],
+    'champion-line winner',
+    'Champion',
+    'champion',
+  );
+  center.append(placeBox('Champion', matchFields(championSel, ctx, 'champion', 'Championship')));
 
   if (thirdPlace) {
     const sel = winnerSelect(
       [loserOf(left), loserOf(right)],
       'champion-line winner',
       'Third place',
+      'third',
     );
     sel.__placeholders = ['(left semifinal loser)', '(right semifinal loser)'];
-    const box = placeBox('3rd Place', withScores(sel, trackScores, '3rd place'));
+    const box = placeBox('3rd Place', matchFields(sel, ctx, 'third', '3rd place'));
     box.classList.add('third');
     center.append(box);
   }
@@ -266,6 +315,7 @@ export function renderBracket(container, {
   thirdPlace = false,
   orientation = 'horizontal',
   trackScores = false,
+  trackTimes = false,
 } = {}) {
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Unsupported bracket size: ${size}`);
@@ -280,7 +330,7 @@ export function renderBracket(container, {
 
   // When wildcards are on, the lowest seed in each quadrant (always index 1 of
   // a quadrant in standard seeding) is decided by a play-in.
-  const ctx = { index: 0, playins: new Set(), scores: trackScores };
+  const ctx = { index: 0, playins: new Set(), scores: trackScores, times: trackTimes };
   if (wildcard) {
     const regions = Math.min(4, size / 2);
     const regionSize = size / regions;
@@ -291,6 +341,7 @@ export function renderBracket(container, {
   if (wildcard) bracket.classList.add('wildcard');
   if (orientation === 'vertical') bracket.classList.add('vertical');
   if (trackScores) bracket.classList.add('scored');
+  if (trackTimes) bracket.classList.add('timed');
 
   const a = build(halfRounds, ctx);
   const b = build(halfRounds, ctx);
@@ -299,7 +350,7 @@ export function renderBracket(container, {
     a.output,
     b.output,
     thirdPlace && supportsThirdPlace(size),
-    trackScores,
+    ctx,
   );
 
   if (orientation === 'vertical') {
