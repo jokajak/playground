@@ -32,6 +32,27 @@ export function supportsThirdPlace(size) {
   return size >= THIRD_PLACE_MIN_SIZE;
 }
 
+// Quadrant titles need at least two quadrants to tell apart; a 2-bracket is a
+// single match, whose only meaningful name is the sheet title.
+const QUADRANT_TITLE_MIN_SIZE = 4;
+
+export function supportsQuadrantTitles(size) {
+  return size >= QUADRANT_TITLE_MIN_SIZE;
+}
+
+// How many quadrants (NCAA "regions") a bracket of this size splits into, and
+// how many entrants each holds. Four whenever there are enough participants to
+// go round; fewer only for the smallest brackets, where a quadrant would hold
+// less than one first-round match. Seeding, play-ins and quadrant titles all
+// divide the bracket the same way, so they all read it from here.
+export function quadrantCount(size) {
+  return Math.min(4, size / 2);
+}
+
+export function quadrantSize(size) {
+  return size / quadrantCount(size);
+}
+
 // Standard tournament seeding order (top-to-bottom) within one region/quadrant.
 // Each pair of adjacent entries is a first-round matchup, so the top seed meets
 // the lowest seed, and the seed sums stay constant each round. The 16 ordering
@@ -58,6 +79,7 @@ SEED_ORDERS[32] = SEED_ORDERS[16].flatMap((seed) => [seed, 33 - seed]);
 //   champion    the champion, third — the 3rd place match
 //   <key>#s0    that match's top score,  <key>#s1 its bottom score
 //   <key>#t     that match's date & time
+//   q0..q3      the title of quadrant 0..3, counted in first-leaf order
 //
 // Round-winner keys are (rounds, first leaf) rather than a running counter, so
 // a match keeps its key whichever layout it is assembled into — the two
@@ -187,6 +209,21 @@ function playinLeaf(ctx, idx) {
   return { node: seedSlot, output: seedSel };
 }
 
+// A quadrant's title: a free-text input drawn down the bracket's outer edge,
+// alongside the quadrant's first-round entries. Blank by default, so a bracket
+// that never names its quadrants prints exactly as it always did.
+function quadrantTitle(idx) {
+  const wrap = el('div', 'quadrant-title');
+  const input = el('input', 'quadrant-line');
+  input.type = 'text';
+  input.autocomplete = 'off';
+  input.dataset.key = `q${idx}`;
+  input.placeholder = `Quadrant ${idx + 1}`;
+  input.setAttribute('aria-label', `Quadrant ${idx + 1} title`);
+  wrap.append(input);
+  return wrap;
+}
+
 // Build the subtree for `rounds` rounds. Returns { node, output } where output
 // is the value-holder (input or select) representing this subtree's winner.
 // `ctx` tracks the running leaf index and which leaves are play-ins.
@@ -212,6 +249,14 @@ function build(rounds, ctx) {
 
   const match = el('div', 'match');
   match.append(feeders, connector, outcol);
+
+  // A subtree spanning exactly one quadrant's worth of leaves *is* that
+  // quadrant, whichever layout it ends up assembled into. Record it here, where
+  // its leaf span is known, so the caller can hang a title off it.
+  if (2 ** rounds === ctx.quadrantSize) {
+    ctx.quadrants.push({ index: start / ctx.quadrantSize, node: match });
+  }
+
   return { node: match, output: win.output };
 }
 
@@ -289,8 +334,7 @@ export function syncWinners(root) {
 // top-right, bottom-right); each is seeded 1..quadrantSize in standard order,
 // so seeds repeat across quadrants the way regions do in the NCAA bracket.
 function assignSeeds(bracket, size) {
-  const regions = Math.min(4, size / 2); // quadrants, but never smaller than 2
-  const regionSize = size / regions;
+  const regionSize = quadrantSize(size);
   const order = SEED_ORDERS[regionSize];
   if (!order) return;
 
@@ -316,6 +360,7 @@ export function renderBracket(container, {
   orientation = 'horizontal',
   trackScores = false,
   trackTimes = false,
+  quadrantTitles = false,
 } = {}) {
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Unsupported bracket size: ${size}`);
@@ -328,12 +373,22 @@ export function renderBracket(container, {
   container.innerHTML = '';
   container.style.setProperty('--participants', String(size));
 
+  const titled = quadrantTitles && supportsQuadrantTitles(size);
+
   // When wildcards are on, the lowest seed in each quadrant (always index 1 of
   // a quadrant in standard seeding) is decided by a play-in.
-  const ctx = { index: 0, playins: new Set(), scores: trackScores, times: trackTimes };
+  const ctx = {
+    index: 0,
+    playins: new Set(),
+    scores: trackScores,
+    times: trackTimes,
+    // Only collect quadrant subtrees when their titles are actually wanted.
+    quadrantSize: titled ? quadrantSize(size) : 0,
+    quadrants: [],
+  };
   if (wildcard) {
-    const regions = Math.min(4, size / 2);
-    const regionSize = size / regions;
+    const regions = quadrantCount(size);
+    const regionSize = quadrantSize(size);
     for (let r = 0; r < regions; r += 1) ctx.playins.add(r * regionSize + 1);
   }
 
@@ -342,6 +397,7 @@ export function renderBracket(container, {
   if (orientation === 'vertical') bracket.classList.add('vertical');
   if (trackScores) bracket.classList.add('scored');
   if (trackTimes) bracket.classList.add('timed');
+  if (titled) bracket.classList.add('titled');
 
   const a = build(halfRounds, ctx);
   const b = build(halfRounds, ctx);
@@ -377,6 +433,14 @@ export function renderBracket(container, {
   }
 
   assignSeeds(bracket, size);
+
+  // Quadrant titles hang off the outer edge of each quadrant's subtree, which
+  // is why they are attached after assembly: the CSS reads whether the subtree
+  // landed in the mirrored right half to decide which edge that is.
+  ctx.quadrants.forEach(({ index, node }) => {
+    node.classList.add('quadrant');
+    node.append(quadrantTitle(index));
+  });
 
   // Keep winner choices in sync as names are typed or picks change.
   const update = () => syncWinners(bracket);

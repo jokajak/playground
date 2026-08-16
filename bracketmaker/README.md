@@ -89,6 +89,17 @@ plain text; ones you leave empty print as a blank line, so you can print the
 schedule half-filled and pencil in the rest. It pairs with **Track scores** —
 scores sit above each winner line, times below.
 
+### Quadrant titles
+
+Toggle **Quadrant titles** to name each quadrant — "East", "Under 12s",
+"Saturday" — in a text box set on its side down the bracket's outer edge, next
+to that quadrant's first-round entries. Left-hand titles read bottom-to-top and
+right-hand ones top-to-bottom, the way edge labels usually do; in the vertical
+layout all of them run down the left edge. They print with everything else, and
+a title you leave blank prints as a plain rule you can letter in by hand. (A
+2-participant bracket is a single match with no quadrants, so the toggle is
+disabled there.)
+
 ### Saving your work
 
 Your bracket is saved in the browser automatically, so a refresh won't lose it.
@@ -97,10 +108,12 @@ To move a bracket between devices, use **Save** (downloads a `.json` file) and
 
 Changing **Participants**, **Layout** or any toggle rebuilds the bracket, but
 keeps what you've already typed — each slot holds its contents through the
-rebuild. The only things that can't survive are values with nowhere left to go:
-entries past the end of a smaller bracket (shrinking 32 → 16 drops the last 16,
-and growing back doesn't bring them home), and a seed's typed name when you
-switch that seed to a wildcard play-in, since the text box becomes a dropdown.
+rebuild. Anything with nowhere to go for the moment is set aside rather than
+thrown away: entries past the end of a smaller bracket, a seed's typed name once
+you switch that seed to a wildcard play-in (the text box becomes a dropdown),
+quadrant titles while the toggle is off. Undo the change and they come back,
+and they ride along in the save file, so a refresh doesn't lose them either.
+Emptying a box yourself does clear it for good, as does **Clear**.
 
 If your browser refuses to store anything — a private window, blocked site data,
 or storage that's full — the page replaces the auto-save hint with a warning, so
@@ -121,6 +134,7 @@ you know to use **Save** instead of trusting a refresh.
 - [x] Horizontal or vertical layout
 - [x] Optional score tracking per match
 - [x] Optional date & time per match
+- [x] Optional editable quadrant titles down the bracket's outer edge
 - [x] Keep entries when resizing, switching layout or toggling options
 
 See `REQUIREMENTS.md` for the full status checklist.

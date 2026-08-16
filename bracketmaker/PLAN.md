@@ -27,6 +27,8 @@ GitHub Pages (same model as jeopardymaker).
 - **Pick-the-winner dropdowns**: later rounds and the champion select the winner
   from their two feeders, storing the chosen side so upstream edits propagate.
 - **Per-quadrant seed numbers** in standard tournament order.
+- **Quadrant titles** (toggle): an editable name per quadrant, set on its side
+  down the bracket's outer edge beside that quadrant's first-round entries.
 - **Wildcard play-ins** (toggle): the lowest seed in each quadrant is decided by
   a two-way play-in whose winner faces the 1-seed.
 - **3rd place match** (toggle): a consolation line below the champion, contested
@@ -106,7 +108,9 @@ stacks all `size` leaves in one column (bracket height ≈ `size * row-h`) — t
 only CSS the vertical mode needs beyond what horizontal already defines.
 
 ### Seeding
-The bracket is split into up to four quadrants (`Math.min(4, size/2)` regions);
+The bracket is split into up to four quadrants (`quadrantCount(size)` regions —
+four whenever there is room, fewer only for the smallest brackets; seeding,
+play-ins and quadrant titles all divide it the same way);
 each is numbered `1..quadrantSize` in standard tournament order so the top seed
 meets the lowest seed. A 128-bracket therefore needs a 32-seed region ordering,
 which is derived rather than typed out: each seed in the 16 order is followed by
@@ -115,6 +119,29 @@ deeper. Leaf slots in document order are top-to-bottom, first subtree then
 second, which maps cleanly onto the quadrants regardless of orientation;
 `assignSeeds` walks them and drops a `.seed` label on the outer edge (mirrored
 only where `.half.right` actually exists, i.e. only in horizontal mode).
+
+### Quadrant titles
+A quadrant is just the subtree spanning `quadrantSize(size)` leaves, so `build`
+records the nodes whose leaf span matches as it comes back up the recursion —
+`renderBracket` then hangs a `.quadrant-title` off each one. Keying the label
+this way (rather than off the DOM after assembly) means the same quadrant gets
+the same title in either orientation, since both build the identical tree.
+
+The label is absolutely positioned against its quadrant's box, on the side away
+from the centre — `right: 100%`, flipped to `left: 100%` under `.half.right`,
+which is also the only thing that distinguishes the two halves here. Turning
+titles on therefore never moves the tree; the bracket reserves the width in its
+own padding, stacking with the play-in margin when wildcards are on (the titles
+step outside the forks, which reach into that same margin).
+
+The text runs down the edge with `writing-mode: vertical-rl`, plus a half turn
+on the left-hand copies so they read bottom-to-top. In that writing mode the
+block axis runs right-to-left, so `border-block-start` lands on the outer edge in
+both halves — the vertical counterpart of the underline every other slot has,
+and what an empty title prints as.
+
+The toggle is disabled below 4 participants (`supportsQuadrantTitles`), where
+the bracket is one match with no quadrants to tell apart.
 
 ### Wildcard play-ins
 The lowest seed in each quadrant always sits at index 1 of the quadrant in
@@ -162,18 +189,32 @@ re-picking upstream flows forward without copying strings around.
 
 ### Persistence
 The state is `{ size, orientation, wildcard, thirdPlace, trackScores, trackTimes,
-title, fields{} }`. `fields` maps every value-holding element's `data-key` to its
-value, covering entries, winner picks, scores and match times in one map.
+quadrantTitles, title, fields{} }`. `fields` maps every value-holding element's
+`data-key` to its value, covering entries, winner picks, scores, match times and
+quadrant titles in one map.
 
 The keys name a slot's **place in the tree**, not its place in the document:
 `e3` is leaf 3, `w2:8` the winner of the 2-round match over leaves 8–11,
-`champion` / `third` the centre boxes, with `#s0` / `#s1` / `#t` suffixes for a
-match's scores and time (see KEYS in `bracket.js`). That choice is what makes a
-redraw non-destructive: because both orientations build the same tree and a leaf
-keeps its index as the bracket grows, re-rendering and re-filling by key carries
-the bracket's contents across a resize, a layout flip or a toggle. Only values
-whose slot no longer exists are dropped. The same map is the save format, so a
-file saved from one layout opens in the other.
+`champion` / `third` the centre boxes, `q0`..`q3` the quadrant titles, with
+`#s0` / `#s1` / `#t` suffixes for a match's scores and time (see KEYS in
+`bracket.js`). That choice is what makes a redraw non-destructive: because both
+orientations build the same tree and a leaf keeps its index as the bracket
+grows, re-rendering and re-filling by key carries the bracket's contents across
+a resize, a layout flip or a toggle. The same map is the save format, so a file
+saved from one layout opens in the other.
+
+A rebuild can only carry over what it can see, so the page also keeps a
+`remembered` map: every redraw folds the live fields into it (live wins, so
+emptying a box on screen empties it here too) and re-fills from the whole map
+afterwards. A value whose slot has just gone — a quadrant title with the toggle
+off, an entry past the end of a smaller bracket, a seed's name once it becomes a
+play-in dropdown — therefore survives until the user clears it, and since the
+map *is* what gets saved, it survives a reload too.
+
+New fields are additive by construction: an older copy of the page ignores keys
+it has no slot for, and a bracket saved before a field existed simply has
+nothing under that key. That is all `quadrantTitles` needed to be backwards
+compatible — an absent flag reads as off, so old saves open exactly as before.
 
 Versions ≤ 6 instead stored `entries[]` / `picks[]` / `scores[]` as document-order
 arrays, which round-tripped only for an identical size and toggle combination —
@@ -193,7 +234,8 @@ page otherwise claims work is being saved when it isn't.
 - `index.html` — controls (size, title, print, save/load), the printable sheet,
   styles, and a small module that wires the controls to `renderBracket`.
 - `src/bracket.js` — `renderBracket(container, { size, orientation, wildcard,
-  thirdPlace, trackScores, trackTimes })` and the recursive builder.
+  thirdPlace, trackScores, trackTimes, quadrantTitles })` and the recursive
+  builder.
 
 ---
 

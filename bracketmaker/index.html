@@ -21,6 +21,8 @@
       --line-w:  2.5px;     /* stroke width of all lines */
       --elbow:   9px;       /* corner radius of the connector elbows */
       --third-gap: 2.6rem;  /* space between the champion and 3rd-place boxes */
+      --playin-w: 200px;    /* outer margin reserved for the play-in forks */
+      --title-w: 2.4rem;    /* outer margin reserved for the quadrant titles */
     }
 
     html, body { height: 100%; }
@@ -306,7 +308,7 @@
        The lowest seed in each quadrant is decided by a two-way play-in. Its
        slot becomes a winner dropdown; the two competitors are drawn as a small
        fork in the reserved outer margin, feeding the seed line. */
-    .bracket.wildcard { padding: 0 200px; }
+    .bracket.wildcard { padding: 0 var(--playin-w); }
     .playin {
       position: absolute;
       top: 0;
@@ -352,6 +354,71 @@
     /* The right half is mirrored, so flip its elbows horizontally. */
     .half.right .connector { transform: scaleX(-1); }
 
+    /* ── Quadrant titles ───────────────────────────────────────────────────
+       An optional free-text name for each quadrant ("East", "Under 12s" …),
+       set on its side down the bracket's outer edge next to that quadrant's
+       first-round entries. Each label is positioned against its own quadrant
+       subtree rather than placed in the flex row, so switching titles on never
+       shifts the tree itself; the bracket reserves the width they need as
+       padding instead. */
+    .bracket.titled { padding: 0 var(--title-w); }
+    .bracket.titled.wildcard { padding: 0 calc(var(--playin-w) + var(--title-w)); }
+    .match.quadrant { position: relative; }
+    .quadrant-title {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: 100%; /* left half: just outside the quadrant */
+      width: var(--title-w);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* With wildcards on, the play-in forks already reach into that margin, so
+       the titles step outside them (the fork is one slot plus a connector). */
+    .bracket.wildcard .quadrant-title {
+      right: calc(100% + var(--col-w) + var(--conn-w));
+    }
+    /* The right half is mirrored, so its outer edge is the other side. */
+    .half.right .quadrant-title { right: auto; left: 100%; }
+    .bracket.wildcard .half.right .quadrant-title {
+      right: auto;
+      left: calc(100% + var(--col-w) + var(--conn-w));
+    }
+
+    /* The label reads down its edge: vertical-rl turns the text a quarter
+       turn, and the left-hand copies are rotated a further half turn so they
+       read bottom-to-top, the way a left-edge label conventionally does. In
+       this writing mode the block axis runs right-to-left, so `block-start` is
+       the outer edge in both halves — that's where the writing line goes, the
+       vertical counterpart of the underline every other slot has. */
+    .quadrant-line {
+      writing-mode: vertical-rl;
+      height: 100%;
+      width: 1.75em;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-block-start: var(--line-w) solid var(--line);
+      border-radius: 4px;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-align: center;
+      color: var(--ink);
+      padding: 10px 0;
+    }
+    .quadrant-title { transform: rotate(180deg); }
+    .half.right .quadrant-title { transform: none; }
+    .quadrant-line::placeholder { color: #cbd5e1; font-weight: 400; }
+    .quadrant-line:hover { background-color: #eef2ff; }
+    .quadrant-line:focus {
+      outline: none;
+      background-color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+    }
+
     /* ── Vertical layout ───────────────────────────────────────────────────
        Same tree, assembled without the mirrored .half wrapper: both subtrees
        flow the same direction and share one feeders column (see bracket.js),
@@ -363,9 +430,13 @@
        bracket holds, since all `--participants` entries stack in one column
        instead of splitting into two side-by-side halves. */
     .bracket.vertical { min-height: calc(var(--participants) * var(--row-h)); }
-    /* Play-in forks only ever reach left here (nothing is mirrored), so the
-       wildcard margin only needs to be reserved on that side. */
-    .bracket.vertical.wildcard { padding: 0 0 0 200px; }
+    /* Play-in forks and quadrant titles only ever reach left here (nothing is
+       mirrored), so those margins are only reserved on that side. */
+    .bracket.vertical.wildcard { padding: 0 0 0 var(--playin-w); }
+    .bracket.vertical.titled { padding: 0 0 0 var(--title-w); }
+    .bracket.vertical.titled.wildcard {
+      padding: 0 0 0 calc(var(--playin-w) + var(--title-w));
+    }
 
     /* Centre column where the two finalists meet. */
     .final-center {
@@ -450,6 +521,16 @@
         border-radius: 0 !important;
         box-shadow: none !important;
       }
+      /* Quadrant titles print the same way, keeping only the writing line down
+         their outer edge — so a blank one prints as a rule to letter in. */
+      .quadrant-line {
+        background: transparent !important;
+        border: none !important;
+        border-block-start: var(--line-w) solid var(--line) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      .quadrant-line::placeholder { color: transparent !important; }
       /* Scores print as plain boxed numbers (or blank boxes to fill in by
          hand), not the on-screen input chrome. */
       .score-pair .score {
@@ -502,6 +583,7 @@
     <label class="toggle" id="thirdplace-label"><input type="checkbox" id="thirdplace"> 3rd place match</label>
     <label class="toggle"><input type="checkbox" id="scores"> Track scores</label>
     <label class="toggle"><input type="checkbox" id="times"> Match date &amp; time</label>
+    <label class="toggle" id="quadrants-label"><input type="checkbox" id="quadrants"> Quadrant titles</label>
     <button id="print" class="btn">Print bracket</button>
     <button id="save" class="btn secondary">Save</button>
     <button id="load" class="btn secondary">Load</button>
@@ -523,8 +605,10 @@
   </div>
 
   <script type="module">
-    import { renderBracket, VALID_SIZES, ORIENTATIONS, syncWinners, supportsThirdPlace }
-      from './src/bracket.js';
+    import {
+      renderBracket, VALID_SIZES, ORIENTATIONS, syncWinners,
+      supportsThirdPlace, supportsQuadrantTitles,
+    } from './src/bracket.js';
 
     const STORAGE_KEY = 'bracketmaker:current';
 
@@ -536,16 +620,23 @@
     const thirdLabel = document.getElementById('thirdplace-label');
     const scoresToggle = document.getElementById('scores');
     const timesToggle = document.getElementById('times');
+    const quadrantsToggle = document.getElementById('quadrants');
+    const quadrantsLabel = document.getElementById('quadrants-label');
     const host = document.getElementById('bracket-host');
     const fileInput = document.getElementById('file');
     const hintEl = document.getElementById('hint');
     const warningEl = document.getElementById('storage-warning');
 
-    // A 2-bracket has no semifinals, so it has nobody to play for 3rd place.
+    // A 2-bracket has no semifinals, so it has nobody to play for 3rd place —
+    // and it is a single match, so it has no quadrants to name either.
     function syncControls() {
-      const ok = supportsThirdPlace(Number(sizeSelect.value));
-      thirdToggle.disabled = !ok;
-      thirdLabel.title = ok ? '' : 'Needs at least 4 participants';
+      const size = Number(sizeSelect.value);
+      const third = supportsThirdPlace(size);
+      thirdToggle.disabled = !third;
+      thirdLabel.title = third ? '' : 'Needs at least 4 participants';
+      const quadrants = supportsQuadrantTitles(size);
+      quadrantsToggle.disabled = !quadrants;
+      quadrantsLabel.title = quadrants ? '' : 'Needs at least 4 participants';
     }
 
     function draw() {
@@ -557,18 +648,26 @@
         orientation: orientationSelect.value,
         trackScores: scoresToggle.checked,
         trackTimes: timesToggle.checked,
+        quadrantTitles: quadrantsToggle.checked,
       });
     }
+
+    // Everything typed so far, by field key — including keys with no field on
+    // the bracket right now. A rebuild only carries over what it can see, so a
+    // value whose slot has just gone (a quadrant title with its toggle off, an
+    // entry past the end of a smaller bracket) would otherwise be gone for
+    // good; remembering it here means undoing the change brings it back, and
+    // that a save made in between still carries it.
+    let remembered = {};
 
     // Rebuild the bracket while keeping what still fits. Every field carries a
     // stable data-key naming its place in the tree (see KEYS in bracket.js), so
     // carrying values across by key preserves each slot's contents through a
-    // resize, a layout flip or a toggle. Values whose slot no longer exists
-    // (entries past the end of a smaller bracket) are the only thing dropped.
+    // resize, a layout flip or a toggle.
     function redraw() {
-      const kept = readFields();
+      remember();
       draw();
-      writeFields(kept);
+      writeFields(remembered);
       syncWinners(host); // option labels follow the carried-over names
       saveLocal();
     }
@@ -578,6 +677,14 @@
       host.querySelectorAll('[data-key]')
         .forEach((node) => { fields[node.dataset.key] = node.value; });
       return fields;
+    }
+
+    // Fold the bracket's live values into the memory. Live wins, so clearing a
+    // field on screen clears it here too — only keys with nothing on screen
+    // keep their remembered value.
+    function remember() {
+      remembered = { ...remembered, ...readFields() };
+      return remembered;
     }
 
     function writeFields(fields) {
@@ -590,22 +697,25 @@
 
     // ── State: title + size + toggles + every field on the bracket ──────────
     // `fields` maps each field's stable data-key to its value, covering the
-    // entries, winner picks, scores and match times in one go. Saves through
-    // version 6 instead carried three document-order arrays; those are still
-    // written (so a file saved here still loads in an older copy of the page)
-    // and still read, in applyState, for brackets saved before this version.
+    // entries, winner picks, scores, match times and quadrant titles in one go.
+    // Saves through version 6 instead carried three document-order arrays;
+    // those are still written (so a file saved here still loads in an older
+    // copy of the page) and still read, in applyState, for brackets saved
+    // before this version. Keys an older page doesn't know (quadrant titles)
+    // are simply ignored when it loads the file, and kept when this one does.
     function collectState() {
       return {
         app: 'bracketmaker',
-        version: 7,
+        version: 8,
         size: Number(sizeSelect.value),
         orientation: orientationSelect.value,
         wildcard: wildcardToggle.checked,
         thirdPlace: thirdToggle.checked,
         trackScores: scoresToggle.checked,
         trackTimes: timesToggle.checked,
+        quadrantTitles: quadrantsToggle.checked,
         title: titleInput.value,
-        fields: readFields(),
+        fields: remember(),
         entries: [...host.querySelectorAll('input.line')].map((i) => i.value),
         picks: [...host.querySelectorAll('select.winner')].map((s) => s.value),
         scores: [...host.querySelectorAll('input.score')].map((i) => i.value),
@@ -622,11 +732,15 @@
       thirdToggle.checked = Boolean(state.thirdPlace);
       scoresToggle.checked = Boolean(state.trackScores);
       timesToggle.checked = Boolean(state.trackTimes);
+      // Saves before version 8 predate quadrant titles and had none.
+      quadrantsToggle.checked = Boolean(state.quadrantTitles);
       draw(); // rebuild at the right size, then fill the slots
       titleInput.value = state.title ?? '';
       if (state.fields && typeof state.fields === 'object') {
-        writeFields(state.fields);
+        remembered = { ...state.fields };
+        writeFields(remembered);
       } else {
+        remembered = {};
         // Pre-v7 save: three arrays, in document order for that size + toggles.
         const inputs = [...host.querySelectorAll('input.line')];
         (state.entries ?? []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
@@ -733,6 +847,7 @@
     thirdToggle.addEventListener('change', redraw);
     scoresToggle.addEventListener('change', redraw);
     timesToggle.addEventListener('change', redraw);
+    quadrantsToggle.addEventListener('change', redraw);
     host.addEventListener('input', saveLocal);
     host.addEventListener('change', saveLocal); // winner dropdowns
     titleInput.addEventListener('input', saveLocal);
@@ -742,6 +857,7 @@
     document.getElementById('clear').addEventListener('click', () => {
       if (!confirm('Clear the title and all entries on this bracket?')) return;
       titleInput.value = '';
+      remembered = {}; // a clear forgets what the rebuilds were holding onto too
       draw();
       saveLocal();
     });
