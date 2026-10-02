@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROP Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0f1117;
+    --panel:   #171a23;
+    --panel-2: #1f2430;
+    --ink:     #e6e9ef;
+    --muted:   #8b93a7;
+    --accent:  #5b9dff;
+    --accent-2:#7ee787;
+    --danger:  #ff6b6b;
+    --warn:    #ffcb6b;
+    --border:  #2a3040;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    padding: 32px 18px 80px;
+  }
+
+  main { max-width: 960px; margin: 0 auto; }
+
+  a { color: var(--accent); }
+
+  header h1 { font-size: 1.9rem; margin-bottom: 6px; }
+  header .tagline { color: var(--muted); margin-bottom: 8px; }
+  .back { font-size: 0.85rem; }
+
+  /* Tabs */
+  nav.tabs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 26px 0 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  nav.tabs button {
+    background: none; border: none; color: var(--muted);
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    padding: 10px 14px; border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .view { display: none; }
+  .view.active { display: block; animation: fade 0.2s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  h2 { font-size: 1.3rem; margin: 30px 0 12px; }
+  h2:first-child { margin-top: 0; }
+  h3 { font-size: 1.05rem; margin: 22px 0 8px; color: var(--accent); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 6px; }
+
+  code, .mono { font-family: var(--mono); }
+  p code, li code {
+    background: var(--panel-2); padding: 1px 6px; border-radius: 4px;
+    font-size: 0.88em; color: var(--accent-2);
+  }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 18px;
+  }
+  .panel.tight { padding: 14px 16px; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--panel-2);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout .label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px;
+  }
+
+  pre {
+    background: #0b0d13; border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-family: var(--mono);
+    font-size: 0.86rem; margin-bottom: 14px; line-height: 1.5;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .kw  { color: var(--accent); }
+  pre .reg { color: var(--warn); }
+  pre .ok  { color: var(--accent-2); }
+
+  /* ---- Simulator ---- */
+  .lab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .lab-grid { grid-template-columns: 1fr; } }
+
+  .sub { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+
+  .regs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .reg-cell {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-family: var(--mono); font-size: 0.82rem;
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .reg-cell .rn { color: var(--warn); }
+  .reg-cell .rv { color: var(--ink); }
+  .reg-cell.changed { outline: 1px solid var(--accent-2); background: #13251a; }
+  .reg-cell.ip .rn { color: var(--accent); }
+
+  .stackview { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; }
+  .stack-row {
+    display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; font-family: var(--mono); font-size: 0.8rem;
+  }
+  .stack-row .addr { color: var(--muted); }
+  .stack-row .val  { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stack-row .tag  { font-size: 0.68rem; color: var(--muted); font-family: system-ui; }
+  .stack-row.sp { outline: 2px solid var(--accent); }
+  .stack-row.consumed { opacity: 0.4; }
+
+  .gadget-catalog { display: flex; flex-direction: column; gap: 6px; }
+  .gadget {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-family: var(--mono); font-size: 0.8rem;
+  }
+  .gadget .g-addr { color: var(--muted); }
+  .gadget .g-asm  { color: var(--accent-2); flex: 1; }
+  .gadget button, .builder button.mini, .controls button {
+    cursor: pointer;
+  }
+  .gadget button {
+    background: var(--accent); color: #0b0d13; border: none; border-radius: 5px;
+    font-weight: 700; font-size: 0.72rem; padding: 4px 9px; font-family: system-ui;
+  }
+  .gadget button:hover { filter: brightness(1.1); }
+
+  .builder { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .chain-row {
+    display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px;
+  }
+  .chain-row .idx { color: var(--muted); font-family: var(--mono); font-size: 0.78rem; }
+  .chain-row select, .chain-row input {
+    background: #0b0d13; color: var(--ink); border: 1px solid var(--border);
+    border-radius: 5px; padding: 6px 8px; font-family: var(--mono); font-size: 0.8rem; width: 100%;
+  }
+  .chain-row.data input { color: var(--accent-2); }
+  .chain-row .kill {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 5px; padding: 4px 8px; cursor: pointer; font-family: system-ui;
+  }
+  .chain-row .kill:hover { color: var(--danger); border-color: var(--danger); }
+
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .add-row button {
+    background: var(--panel-2); border: 1px dashed var(--border); color: var(--muted);
+    border-radius: 6px; padding: 7px 12px; font-size: 0.82rem; cursor: pointer;
+  }
+  .add-row button:hover { color: var(--ink); border-color: var(--accent); }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+  .controls button {
+    border: none; border-radius: 6px; padding: 9px 16px; font-weight: 700;
+    font-size: 0.85rem; cursor: pointer;
+  }
+  .btn-run   { background: var(--accent-2); color: #0b0d13; }
+  .btn-step  { background: var(--accent); color: #0b0d13; }
+  .btn-reset { background: var(--panel-2); color: var(--ink); border: 1px solid var(--border) !important; }
+  .controls button:hover { filter: brightness(1.08); }
+
+  .console {
+    background: #0b0d13; border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; font-family: var(--mono); font-size: 0.8rem;
+    min-height: 90px; max-height: 240px; overflow-y: auto; white-space: pre-wrap;
+  }
+  .console .c-info { color: var(--muted); }
+  .console .c-exec { color: var(--ink); }
+  .console .c-good { color: var(--accent-2); }
+  .console .c-bad  { color: var(--danger); }
+  .console .c-reg  { color: var(--warn); }
+
+  .goal-box {
+    border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px;
+    background: #101c30; margin-bottom: 16px;
+  }
+  .goal-box .sub { color: var(--accent); }
+  .goal-box code { background: #0b0d13; }
+
+  .challenge-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .challenge-tabs button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; font-weight: 600;
+  }
+  .challenge-tabs button.active { background: var(--accent); color: #0b0d13; border-color: var(--accent); }
+  .challenge-tabs button.solved::after { content: " ✓"; color: var(--accent-2); }
+  .challenge-tabs button.active.solved::after { color: #0b0d13; }
+
+  .status-banner { border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-weight: 600; display: none; }
+  .status-banner.show { display: block; }
+  .status-banner.win  { background: #13251a; border: 1px solid var(--accent-2); color: var(--accent-2); }
+  .status-banner.fail { background: #2a1416; border: 1px solid var(--danger); color: var(--danger); }
+
+  details { margin-bottom: 10px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
+  details > div { padding: 10px 0 0 4px; }
+
+  .footer-note { color: var(--muted); font-size: 0.82rem; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 16px; }
+
+  table.gloss { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 14px; }
+  table.gloss td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; }
+  table.gloss td:first-child { font-family: var(--mono); color: var(--accent-2); white-space: nowrap; width: 1%; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="back"><a href="../">&larr; Playground</a></div>
+    <h1>ROP Playground</h1>
+    <p class="tagline">Learn how return-oriented programming chains work &mdash; then prove it by building chains yourself.</p>
+  </header>
+
+  <nav class="tabs">
+    <button data-view="learn" class="active">1 &middot; Learn</button>
+    <button data-view="sim">2 &middot; Simulator</button>
+    <button data-view="challenges">3 &middot; Challenges</button>
+  </nav>
+
+  <!-- ============ LEARN ============ -->
+  <section class="view active" id="view-learn">
+    <div class="callout">
+      <span class="label">What this is</span>
+      A conceptual sandbox. The "CPU" here is a toy simulator written in JavaScript &mdash; there is no real binary,
+      no real memory, and nothing you build here does anything to your computer. It exists so the <em>mechanics</em>
+      of a ROP chain become something you can poke at, the way exercises like ROP Emporium teach them.
+    </div>
+
+    <h2>Why return-oriented programming exists</h2>
+    <p>
+      The classic stack-overflow attack was simple: overflow a buffer, overwrite the saved return address so it
+      points <em>into your own buffer</em>, and fill that buffer with raw CPU instructions ("shellcode"). When the
+      function returned, the CPU jumped into your bytes and ran them.
+    </p>
+    <p>
+      Defenders killed that with <strong>NX / DEP</strong> (the "No-eXecute" bit, Data Execution Prevention): memory
+      pages are now either <em>writable</em> or <em>executable</em>, never both. Your buffer is writable, so the CPU
+      refuses to execute it. Injected shellcode is dead on arrival.
+    </p>
+    <p>
+      <strong>ROP is the answer to that.</strong> The insight: you don't need to inject <em>new</em> code if the
+      program already contains all the code you need &mdash; in libraries like libc, in the program itself. You can't
+      write new instructions, but you can still control the <em>stack</em>, and the stack is what decides where each
+      <code>ret</code> goes next. So instead of writing code, you write a <em>list of addresses</em> of code that is
+      already there, and let the CPU's own <code>ret</code> instruction walk down your list.
+    </p>
+
+    <h2>The one instruction that makes it work: <code>ret</code></h2>
+    <p>On x86-64, <code>ret</code> does exactly two tiny things:</p>
+    <pre><span class="cmt"># ret is literally equivalent to:</span>
+<span class="kw">pop</span> <span class="reg">rip</span>      <span class="cmt"># take the 8 bytes at the top of the stack, make them the next instruction address</span>
+             <span class="cmt"># (pop also advances rsp by 8, so the stack "moves down" to the next slot)</span></pre>
+    <p>
+      That is the whole trick. If you control the stack, every <code>ret</code> is a jump to an address <em>you</em>
+      chose. Put a second useful snippet's address in the next slot, and when <em>it</em> ends in <code>ret</code>,
+      the CPU pops <em>that</em> and jumps again. One <code>ret</code> hands off to the next, down the stack, forever.
+    </p>
+
+    <h2>Gadgets</h2>
+    <p>
+      A <strong>gadget</strong> is a short run of instructions that happens to end in <code>ret</code>. You find them
+      scattered throughout existing code. Each gadget does one small useful thing and then hands control back to the
+      stack. A few classics:
+    </p>
+    <table class="gloss">
+      <tr><td>pop rdi ; ret</td><td>Take the next value off the stack into register <code>rdi</code>, then return. This is how you load an argument you control.</td></tr>
+      <tr><td>pop rsi ; ret</td><td>Same, for <code>rsi</code> (the 2nd argument register).</td></tr>
+      <tr><td>mov [rdi], rsi ; ret</td><td>A "write-what-where": store the value in <code>rsi</code> into the memory address in <code>rdi</code>. Used to plant a string like <code>/bin/sh</code> into memory.</td></tr>
+      <tr><td>syscall ; ret</td><td>Make a kernel call using whatever is currently in the registers.</td></tr>
+    </table>
+    <div class="callout">
+      <span class="label">Calling convention (System V, x86-64)</span>
+      When you call a function, arguments go in registers in this order:
+      <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>rcx</code>, <code>r8</code>, <code>r9</code>.
+      For a raw <code>syscall</code>, the syscall number goes in <code>rax</code> and arguments in
+      <code>rdi, rsi, rdx, ...</code>. So "set up the registers, then call" is the recurring shape of every chain.
+    </div>
+
+    <h2>What a chain looks like on the stack</h2>
+    <p>
+      Say you want to call a function <code>win(0xdeadbeef)</code> that already exists in the program. You need
+      <code>rdi = 0xdeadbeef</code> and then to jump to <code>win</code>. You find a <code>pop rdi ; ret</code> gadget.
+      Here is the stack you build (top = lowest address = what executes first):
+    </p>
+    <pre><span class="cmt">stack (grows downward in address; ret reads top-first)</span>
+┌────────────────────────┬──────────────────────────────────────┐
+│ &amp;(pop rdi ; ret)        │ <span class="cmt">1. ret jumps here. It runs "pop rdi".</span>  │
+├────────────────────────┼──────────────────────────────────────┤
+│ 0x00000000deadbeef      │ <span class="cmt">2. "pop rdi" eats THIS slot → rdi</span>       │
+├────────────────────────┼──────────────────────────────────────┤
+│ &amp;win                    │ <span class="cmt">3. the gadget's own "ret" jumps here</span>    │
+└────────────────────────┴──────────────────────────────────────┘</pre>
+    <p>Step by step, the CPU does:</p>
+    <ol>
+      <li>The overflow put <code>&amp;(pop rdi ; ret)</code> where the return address was. The vulnerable function's <code>ret</code> jumps there.</li>
+      <li><code>pop rdi</code> runs: it pops the next slot (<code>0xdeadbeef</code>) into <code>rdi</code> and advances the stack.</li>
+      <li>The gadget's <code>ret</code> runs: it pops the <em>next</em> slot (<code>&amp;win</code>) into <code>rip</code>. Now we're executing <code>win</code> &mdash; with <code>rdi</code> already set to the argument we wanted.</li>
+    </ol>
+    <p>
+      That's a complete, if tiny, ROP chain. Longer chains just repeat the idea: each gadget sets up a little state,
+      and its trailing <code>ret</code> pulls the next address off the stack. The
+      <strong>Simulator</strong> tab lets you build exactly this and watch it run. The
+      <strong>Challenges</strong> tab gives you goals and makes you figure out the chain.
+    </p>
+
+    <div class="callout warn">
+      <span class="label">Reality check</span>
+      Real-world ROP adds layers this toy skips: finding gadgets in an actual binary (<code>ROPgadget</code>,
+      <code>ropper</code>), defeating <strong>ASLR</strong> (addresses are randomized, so you usually need an info-leak
+      first), stack canaries, and byte-level constraints (no null bytes, alignment). The <em>logic of chaining</em>,
+      though, is exactly what you'll practice here.
+    </div>
+  </section>
+
+  <!-- ============ SIMULATOR ============ -->
+  <section class="view" id="view-sim">
+    <p>
+      A free-play toy machine. Pick gadgets from the catalog to append them to your chain, or add raw data slots for
+      <code>pop</code> instructions to consume. Then <strong>Step</strong> through one instruction at a time (watch
+      <code>rsp</code> and <code>rip</code> move) or <strong>Run</strong> the whole thing.
+    </p>
+
+    <div class="lab-grid">
+      <div>
+        <div class="panel tight">
+          <div class="sub">Registers</div>
+          <div class="regs" id="sim-regs"></div>
+        </div>
+        <div class="panel tight">
+          <div class="sub">Gadget catalog &mdash; click + to append</div>
+          <div class="gadget-catalog" id="sim-catalog"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel tight">
+          <div class="sub">Your chain (the stack you control)</div>
+          <div class="builder" id="sim-builder"></div>
+          <div class="add-row">
+            <button id="sim-add-data">+ raw data slot</button>
+            <button id="sim-clear">clear chain</button>
+          </div>
+        </div>
+        <div class="panel tight">
+          <div class="sub">Stack (live)</div>
+          <div class="stackview" id="sim-stack"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-step" id="sim-step">Step ▸</button>
+      <button class="btn-run" id="sim-run">Run ▸▸</button>
+      <button class="btn-reset" id="sim-reset">Reset</button>
+    </div>
+    <div class="console" id="sim-console"></div>
+  </section>
+
+  <!-- ============ CHALLENGES ============ -->
+  <section class="view" id="view-challenges">
+    <div class="challenge-tabs" id="chal-tabs"></div>
+    <div class="status-banner" id="chal-banner"></div>
+
+    <div class="goal-box">
+      <div class="sub">Goal</div>
+      <div id="chal-goal"></div>
+    </div>
+
+    <div class="lab-grid">
+      <div>
+        <div class="panel tight">
+          <div class="sub">Registers</div>
+          <div class="regs" id="chal-regs"></div>
+        </div>
+        <div class="panel tight">
+          <div class="sub">Available gadgets &mdash; click + to append</div>
+          <div class="gadget-catalog" id="chal-catalog"></div>
+        </div>
+        <details>
+          <summary>Need a hint?</summary>
+          <div id="chal-hint"></div>
+        </details>
+      </div>
+      <div>
+        <div class="panel tight">
+          <div class="sub">Your chain</div>
+          <div class="builder" id="chal-builder"></div>
+          <div class="add-row">
+            <button id="chal-add-data">+ raw data slot</button>
+            <button id="chal-clear">clear chain</button>
+          </div>
+        </div>
+        <div class="panel tight">
+          <div class="sub">Stack (live)</div>
+          <div class="stackview" id="chal-stack"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-step" id="chal-step">Step ▸</button>
+      <button class="btn-run" id="chal-run">Run &amp; check ▸▸</button>
+      <button class="btn-reset" id="chal-reset">Reset</button>
+    </div>
+    <div class="console" id="chal-console"></div>
+
+    <details id="chal-solution-wrap" style="margin-top:14px;">
+      <summary>Show a worked solution</summary>
+      <div id="chal-solution"></div>
+    </details>
+  </section>
+
+  <p class="footer-note">
+    For learning and authorized security practice. This is a simulation of the chaining logic only &mdash; it contains
+    no real exploit, no shellcode, and targets nothing. Source on
+    <a href="https://github.com/jokajak/playground">GitHub</a>.
+  </p>
+</main>
+
+<script>
+"use strict";
+/* ============================================================
+   Toy x86-64-ish machine.
+   A gadget is a list of micro-ops ending in an implicit `ret`.
+   The "stack" is the chain the user controls: an ordered list of
+   8-byte slots. Each slot is either a gadget address or raw data.
+   Execution model:
+     - rip points at a gadget (by its address). We run its ops.
+     - `pop REG`  : REG = stack[rsp]; rsp += 1 slot
+     - `ret`      : rip = stack[rsp]; rsp += 1 slot   (then execute gadget at rip)
+     - other ops  : mutate registers / memory, then fall through to ret
+   Addresses are faked but stable so chains read like real ones.
+   ============================================================ */
+
+const SLOT = 8; // bytes per stack slot (display only)
+
+// ---- Gadget definitions ----------------------------------------------------
+// Each gadget: { addr, asm, pops:[regs consumed in order], run:(m)=>void }
+// `pops` lists registers filled from the stack BEFORE the trailing ret.
+// `run` applies any register/memory effects that are not simple pops.
+function hex(n){
+  if (n === undefined || n === null) return "0x0";
+  let v = BigInt.asUintN(64, BigInt(n));
+  return "0x" + v.toString(16);
+}
+
+// A registry of every gadget the whole app knows about, keyed by address.
+const GADGETS = {};
+function defGadget(addr, asm, spec){
+  GADGETS[addr] = Object.assign({ addr, asm, pops: [], effects: null }, spec);
+  return addr;
+}
+
+// Core reusable gadgets (shared addresses so chains look consistent)
+const G_POP_RDI = defGadget(0x401201, "pop rdi ; ret",        { pops:["rdi"] });
+const G_POP_RSI = defGadget(0x401215, "pop rsi ; ret",        { pops:["rsi"] });
+const G_POP_RDX = defGadget(0x401229, "pop rdx ; ret",        { pops:["rdx"] });
+const G_POP_RAX = defGadget(0x40123d, "pop rax ; ret",        { pops:["rax"] });
+const G_POP_RSI_RDX = defGadget(0x401251, "pop rsi ; pop rdx ; ret", { pops:["rsi","rdx"] });
+const G_WRITE   = defGadget(0x401270, "mov [rdi], rsi ; ret", { effects:(m)=>{ m.mem[m.reg.rdi] = m.reg.rsi; } });
+const G_SYSCALL = defGadget(0x401290, "syscall ; ret",        { effects:(m)=>{ m.didSyscall = true; m.syscallRegs = { ...m.reg }; } });
+const G_XOR_RAX = defGadget(0x4012a4, "xor rax, rax ; ret",   { effects:(m)=>{ m.reg.rax = 0n; } });
+
+// "Target" addresses that aren't gadgets but places a chain may jump to.
+const ADDR_WIN   = 0x401176;   // a function the program already contains
+const ADDR_PRINT = 0x401162;   // another target used in a challenge
+
+// ---- Machine ---------------------------------------------------------------
+function makeMachine(){
+  return {
+    reg: { rdi:0n, rsi:0n, rdx:0n, rax:0n, rip:0n, rsp:0n },
+    mem: {},                 // address(BigInt-ish string) -> value
+    stack: [],               // array of {kind:'gadget'|'data', value, label}
+    sp: 0,                   // index into stack = current rsp slot
+    halted: false,
+    log: [],
+    reached: [],             // addresses jumped to that are "targets"
+    didSyscall: false,
+    syscallRegs: null,       // register snapshot taken when syscall ran
+    changed: new Set(),      // registers changed since last step (for UI)
+  };
+}
+
+// Normalise a user value into a BigInt (accepts 0x.., decimal, or a known label)
+function parseVal(raw){
+  if (raw === undefined || raw === null) return 0n;
+  const s = String(raw).trim().toLowerCase();
+  if (s === "") return 0n;
+  if (s === "&win")   return BigInt(ADDR_WIN);
+  if (s === "&print") return BigInt(ADDR_PRINT);
+  try {
+    if (s.startsWith("0x")) return BigInt.asUintN(64, BigInt(s));
+    return BigInt.asUintN(64, BigInt(s));
+  } catch(e){ return 0n; }
+}
+
+/* ---------------------------------------------------------------------------
+   A Lab binds one machine + one chain to a set of DOM nodes, and provides
+   the build/step/run/reset behaviour shared by the Simulator and Challenges.
+   --------------------------------------------------------------------------- */
+class Lab {
+  constructor(opts){
+    this.ids = opts.ids;               // {regs, catalog, builder, stack, console, step, run, reset, addData, clear}
+    this.catalog = opts.catalog;       // array of gadget addresses offered
+    this.onRun = opts.onRun || null;   // (machine)=>void, called after a full run
+    this.m = makeMachine();
+    this.chain = [];                   // [{kind, gadget?, value?}]
+    this.running = false;              // mid-execution (stepping)
+    this.bind();
+    this.renderCatalog();
+    this.renderChain();
+    this.resetMachine(true);
+  }
+
+  el(k){ return document.getElementById(this.ids[k]); }
+
+  bind(){
+    this.el("step").onclick  = () => this.step();
+    this.el("run").onclick   = () => this.run();
+    this.el("reset").onclick = () => this.resetMachine();
+    this.el("addData").onclick = () => { this.chain.push({kind:"data", value:"0x0"}); this.renderChain(); this.resetMachine(true); };
+    this.el("clear").onclick   = () => { this.chain = []; this.renderChain(); this.resetMachine(true); };
+  }
+
+  setCatalog(addrs){ this.catalog = addrs; this.renderCatalog(); }
+
+  renderCatalog(){
+    const box = this.el("catalog");
+    box.innerHTML = "";
+    this.catalog.forEach(addr => {
+      const g = GADGETS[addr];
+      const row = document.createElement("div");
+      row.className = "gadget";
+      row.innerHTML = `<span class="g-addr">${hex(addr)}</span><span class="g-asm">${g.asm}</span>`;
+      const b = document.createElement("button");
+      b.textContent = "+";
+      b.title = "append to chain";
+      b.onclick = () => { this.chain.push({kind:"gadget", gadget:addr}); this.renderChain(); this.resetMachine(true); };
+      row.appendChild(b);
+      box.appendChild(row);
+    });
+  }
+
+  renderChain(){
+    const box = this.el("builder");
+    box.innerHTML = "";
+    if (this.chain.length === 0){
+      box.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:4px 2px;">Empty. Add gadgets from the catalog, or raw data slots.</div>`;
+      return;
+    }
+    this.chain.forEach((entry, i) => {
+      const row = document.createElement("div");
+      row.className = "chain-row" + (entry.kind === "data" ? " data" : "");
+      const idx = `<span class="idx">${i}</span>`;
+      let mid;
+      if (entry.kind === "gadget"){
+        const opts = this.catalog.map(a =>
+          `<option value="${a}" ${a===entry.gadget?"selected":""}>${hex(a)}  ${GADGETS[a].asm}</option>`).join("");
+        mid = `<select data-i="${i}">${opts}</select>`;
+      } else {
+        mid = `<input data-i="${i}" value="${entry.value}" placeholder="0x... or &win" spellcheck="false">`;
+      }
+      row.innerHTML = idx + mid + `<button class="kill" data-i="${i}">✕</button>`;
+      box.appendChild(row);
+    });
+    box.querySelectorAll("select").forEach(s => s.onchange = e => {
+      this.chain[+e.target.dataset.i].gadget = +e.target.value; this.resetMachine(true);
+    });
+    box.querySelectorAll("input").forEach(inp => inp.oninput = e => {
+      this.chain[+e.target.dataset.i].value = e.target.value; this.resetMachine(true);
+    });
+    box.querySelectorAll(".kill").forEach(k => k.onclick = e => {
+      this.chain.splice(+e.target.dataset.i, 1); this.renderChain(); this.resetMachine(true);
+    });
+  }
+
+  // Build the live stack array from the chain, place rip/rsp at the top.
+  resetMachine(silent){
+    this.m = makeMachine();
+    this.running = false;
+    // Lay the chain onto the stack. Base address is arbitrary & descending for looks.
+    const base = 0x7fffffffe000;
+    this.m.stack = this.chain.map((entry, i) => {
+      if (entry.kind === "gadget"){
+        return { kind:"gadget", value: BigInt(entry.gadget), label: GADGETS[entry.gadget].asm, addr: base + i*SLOT };
+      }
+      const v = parseVal(entry.value);
+      return { kind:"data", value: v, label: "data", addr: base + i*SLOT };
+    });
+    this.m.sp = 0;
+    this.m.reg.rsp = BigInt(base);
+    // The very first ret (from the "vulnerable function") kicks us off:
+    // we simulate that by treating execution as "about to ret into slot 0".
+    this.m.reg.rip = 0n;
+    this.m.pendingStart = true;
+    this.renderAll();
+    if (!silent) this.log("info", "Machine reset. rip will ret into the top of your chain.");
+    this.renderConsole();
+  }
+
+  log(kind, msg){ this.m.log.push({kind, msg}); }
+
+  renderAll(){ this.renderRegs(); this.renderStack(); }
+
+  renderRegs(){
+    const box = this.el("regs");
+    box.innerHTML = "";
+    const order = ["rdi","rsi","rdx","rax","rsp","rip"];
+    order.forEach(r => {
+      const cell = document.createElement("div");
+      cell.className = "reg-cell" + (r==="rip"?" ip":"") + (this.m.changed.has(r)?" changed":"");
+      cell.innerHTML = `<span class="rn">${r}</span><span class="rv">${hex(this.m.reg[r])}</span>`;
+      box.appendChild(cell);
+    });
+  }
+
+  renderStack(){
+    const box = this.el("stack");
+    box.innerHTML = "";
+    if (this.m.stack.length === 0){
+      box.innerHTML = `<div style="color:var(--muted);font-size:.8rem;">(empty)</div>`;
+      return;
+    }
+    this.m.stack.forEach((slot, i) => {
+      const row = document.createElement("div");
+      const atSp = (i === this.m.sp && !this.m.halted);
+      row.className = "stack-row" + (atSp ? " sp" : "") + (i < this.m.sp ? " consumed" : "");
+      const tag = slot.kind === "gadget" ? slot.label : "data";
+      row.innerHTML =
+        `<span class="addr">${hex(slot.addr).slice(-6)}</span>` +
+        `<span class="val">${hex(slot.value)}</span>` +
+        `<span class="tag">${atSp ? "← rsp · " : ""}${tag}</span>`;
+      box.appendChild(row);
+    });
+  }
+
+  renderConsole(){
+    const box = this.el("console");
+    box.innerHTML = this.m.log.map(l => `<span class="c-${l.kind}">${l.msg}</span>`).join("\n");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // Pop one slot from the live stack, returning its value; advances rsp.
+  popSlot(){
+    if (this.m.sp >= this.m.stack.length){
+      this.m.halted = true;
+      this.log("bad", "✗ Stack underflow — chain ran off the end. (A real CPU would crash or wander into garbage.)");
+      return null;
+    }
+    const slot = this.m.stack[this.m.sp];
+    this.m.sp += 1;
+    this.m.reg.rsp = BigInt(this.m.stack[0].addr) + BigInt(this.m.sp * SLOT);
+    return slot.value;
+  }
+
+  // Execute exactly one gadget (the one rip currently points at), including its
+  // pops and trailing ret. Returns false if execution halted.
+  step(){
+    this.m.changed = new Set();
+    if (this.m.halted){ this.log("info","(halted — reset to run again)"); this.renderConsole(); return false; }
+
+    // Kick-off: perform the initial "ret" into slot 0.
+    if (this.m.pendingStart){
+      this.m.pendingStart = false;
+      const dest = this.popSlot();
+      if (dest === null){ this.renderAll(); this.renderConsole(); return false; }
+      this.m.reg.rip = dest;
+      this.m.changed.add("rip").add("rsp");
+      this.log("exec", `ret → rip = ${hex(dest)}  (${this.describe(dest)})`);
+      this.renderAll(); this.renderConsole();
+      return true;
+    }
+
+    const addr = Number(BigInt.asUintN(64, this.m.reg.rip));
+    const g = GADGETS[addr];
+
+    if (!g){
+      // Landed on a non-gadget address: either a known target, or garbage.
+      if (addr === ADDR_WIN || addr === ADDR_PRINT){
+        this.m.reached.push(addr);
+        this.log("good", `▶ reached ${this.describe(addr)} with rdi=${hex(this.m.reg.rdi)} rsi=${hex(this.m.reg.rsi)} rdx=${hex(this.m.reg.rdx)}`);
+      } else {
+        this.log("bad", `✗ rip = ${hex(addr)} is not executable code here — the chain jumped somewhere with no gadget.`);
+      }
+      this.m.halted = true;
+      this.renderAll(); this.renderConsole();
+      return false;
+    }
+
+    // Run the gadget's pops.
+    let line = g.asm.split(";").map(s=>s.trim());
+    for (const reg of g.pops){
+      const v = this.popSlot();
+      if (v === null){ this.renderAll(); this.renderConsole(); return false; }
+      this.m.reg[reg] = v;
+      this.m.changed.add(reg).add("rsp");
+      this.log("exec", `pop ${reg} → ${reg} = ${hex(v)}`);
+    }
+    // Run any special effect (write, syscall, xor...).
+    if (g.effects){
+      g.effects(this.m);
+      if (g.addr === G_SYSCALL){
+        this.log("reg", `syscall  (rax=${hex(this.m.reg.rax)} rdi=${hex(this.m.reg.rdi)} rsi=${hex(this.m.reg.rsi)} rdx=${hex(this.m.reg.rdx)})`);
+        // Treat the syscall as the end of the chain (a successful execve never returns).
+        this.log("info", "Kernel took over — chain ends at the syscall.");
+        this.m.halted = true;
+        this.renderAll(); this.renderConsole();
+        return false;
+      } else if (g.addr === G_WRITE){
+        this.log("exec", `mov [rdi], rsi → mem[${hex(this.m.reg.rdi)}] = ${hex(this.m.reg.rsi)}`);
+        this.m.changed.add("rsp");
+      } else {
+        this.log("exec", g.asm.replace(/ ; ret$/,""));
+      }
+    }
+    // Trailing ret.
+    const dest = this.popSlot();
+    if (dest === null){ this.renderAll(); this.renderConsole(); return false; }
+    this.m.reg.rip = dest;
+    this.m.changed.add("rip").add("rsp");
+    this.log("exec", `ret → rip = ${hex(dest)}  (${this.describe(dest)})`);
+    this.renderAll(); this.renderConsole();
+    return true;
+  }
+
+  describe(addr){
+    const a = Number(BigInt.asUintN(64, BigInt(addr)));
+    if (GADGETS[a]) return GADGETS[a].asm;
+    if (a === ADDR_WIN) return "win()";
+    if (a === ADDR_PRINT) return "print_flag()";
+    if (a === 0) return "null";
+    return "??? unmapped";
+  }
+
+  run(){
+    this.resetMachine(true);
+    this.log("info", "Running chain…");
+    let guard = 0;
+    while (!this.m.halted && guard < 200){
+      const ok = this.step();
+      guard++;
+      if (!ok) break;
+    }
+    if (guard >= 200) this.log("bad", "✗ Too many steps — possible loop.");
+    this.renderConsole();
+    if (this.onRun) this.onRun(this.m);
+  }
+}
+
+// ---- Instantiate the free-play simulator -----------------------------------
+const simLab = new Lab({
+  ids: { regs:"sim-regs", catalog:"sim-catalog", builder:"sim-builder", stack:"sim-stack",
+         console:"sim-console", step:"sim-step", run:"sim-run", reset:"sim-reset",
+         addData:"sim-add-data", clear:"sim-clear" },
+  catalog: [G_POP_RDI, G_POP_RSI, G_POP_RDX, G_POP_RAX, G_POP_RSI_RDX, G_WRITE, G_SYSCALL, G_XOR_RAX],
+});
+// Seed the simulator with the worked example from the Learn tab.
+simLab.chain = [
+  { kind:"gadget", gadget:G_POP_RDI },
+  { kind:"data",   value:"0xdeadbeef" },
+  { kind:"data",   value:"&win" },
+];
+simLab.renderChain();
+simLab.resetMachine(true);
+
+/* ============================================================
+   CHALLENGES
+   ============================================================ */
+const CHALLENGES = [
+  {
+    id: "c1",
+    name: "Set one argument",
+    goalHtml: `Call <code>win()</code> with its argument set: reach <code>&amp;win</code> with
+               <code>rdi = 0x1337</code>.`,
+    catalog: [G_POP_RDI, G_POP_RSI],
+    check: (m) => m.reached.includes(ADDR_WIN) && m.reg.rdi === 0x1337n,
+    hintHtml: `You need <code>rdi</code> to hold <code>0x1337</code> at the moment you land on <code>win</code>.
+               The <code>pop rdi ; ret</code> gadget takes its value from the <em>next</em> stack slot. So:
+               the gadget, then a data slot holding <code>0x1337</code>, then <code>&amp;win</code>.`,
+    solution: [
+      { kind:"gadget", gadget:G_POP_RDI },
+      { kind:"data",   value:"0x1337" },
+      { kind:"data",   value:"&win" },
+    ],
+    solutionNote: `The gadget's <code>ret</code> consumes <code>0x1337</code> into <code>rdi</code>, then its own
+                   trailing <code>ret</code> jumps to <code>win</code> — which now sees the argument you planted.`,
+  },
+  {
+    id: "c2",
+    name: "Two arguments",
+    goalHtml: `Reach <code>&amp;win</code> with <code>rdi = 0xaaaa</code> <em>and</em> <code>rsi = 0xbbbb</code>.`,
+    catalog: [G_POP_RDI, G_POP_RSI, G_POP_RDX],
+    check: (m) => m.reached.includes(ADDR_WIN) && m.reg.rdi === 0xaaaan && m.reg.rsi === 0xbbbbn,
+    hintHtml: `Chain two "pop" gadgets back to back. Each gadget is followed by the data it pops. Order doesn't
+               matter for the result here, as long as each register ends up correct before you jump to <code>win</code>.`,
+    solution: [
+      { kind:"gadget", gadget:G_POP_RDI },
+      { kind:"data",   value:"0xaaaa" },
+      { kind:"gadget", gadget:G_POP_RSI },
+      { kind:"data",   value:"0xbbbb" },
+      { kind:"data",   value:"&win" },
+    ],
+    solutionNote: `First gadget pops <code>0xaaaa</code> → <code>rdi</code> and returns into the second gadget,
+                   which pops <code>0xbbbb</code> → <code>rsi</code> and returns into <code>win</code>.`,
+  },
+  {
+    id: "c3",
+    name: "Write-what-where",
+    goalHtml: `Plant a value in memory, then call. Make <code>mem[0x404080] = 0x5f727473</code>,
+               then reach <code>&amp;win</code>. (This is how you'd stage a string like a filename in a real chain.)`,
+    catalog: [G_POP_RDI, G_POP_RSI, G_WRITE],
+    check: (m) => m.reached.includes(ADDR_WIN) && m.mem[0x404080n] === 0x5f727473n,
+    hintHtml: `<code>mov [rdi], rsi</code> stores <code>rsi</code> at the address in <code>rdi</code>. So first set
+               <code>rdi = 0x404080</code> (the <em>where</em>) and <code>rsi = 0x5f727473</code> (the <em>what</em>)
+               using the pop gadgets, <em>then</em> run the write gadget, then jump to <code>win</code>.`,
+    solution: [
+      { kind:"gadget", gadget:G_POP_RDI },
+      { kind:"data",   value:"0x404080" },
+      { kind:"gadget", gadget:G_POP_RSI },
+      { kind:"data",   value:"0x5f727473" },
+      { kind:"gadget", gadget:G_WRITE },
+      { kind:"data",   value:"&win" },
+    ],
+    solutionNote: `Load the destination into <code>rdi</code> and the payload into <code>rsi</code>, run
+                   <code>mov [rdi], rsi</code> to commit the write, and the write gadget's <code>ret</code> carries
+                   you into <code>win</code>.`,
+  },
+  {
+    id: "c4",
+    name: "Build a syscall",
+    goalHtml: `Set up a raw <code>execve</code>-style syscall and fire it. You need
+               <code>rax = 0x3b</code> (59), <code>rdi = 0x404000</code>, <code>rsi = 0</code>,
+               <code>rdx = 0</code>, then execute <code>syscall</code>.`,
+    catalog: [G_POP_RDI, G_POP_RSI, G_POP_RDX, G_POP_RAX, G_POP_RSI_RDX, G_XOR_RAX, G_SYSCALL],
+    check: (m) => { const r = m.syscallRegs; return !!r && r.rax === 0x3bn && r.rdi === 0x404000n && r.rsi === 0n && r.rdx === 0n; },
+    hintHtml: `The syscall reads the registers that are set at the moment it runs. Load all four
+               (<code>rax, rdi, rsi, rdx</code>) with pop gadgets, then run <code>syscall ; ret</code> last.
+               Tip: <code>pop rsi ; pop rdx ; ret</code> sets two registers from two consecutive data slots in one go.`,
+    solution: [
+      { kind:"gadget", gadget:G_POP_RAX },
+      { kind:"data",   value:"0x3b" },
+      { kind:"gadget", gadget:G_POP_RDI },
+      { kind:"data",   value:"0x404000" },
+      { kind:"gadget", gadget:G_POP_RSI_RDX },
+      { kind:"data",   value:"0x0" },
+      { kind:"data",   value:"0x0" },
+      { kind:"gadget", gadget:G_SYSCALL },
+    ],
+    solutionNote: `Each pop loads one argument register; <code>pop rsi ; pop rdx</code> handles two at once from the
+                   two data slots after it. With <code>rax=59, rdi=ptr, rsi=0, rdx=0</code> set, <code>syscall</code>
+                   makes the kernel call — the register-setup-then-call shape of nearly every real chain.`,
+  },
+];
+
+let activeChal = CHALLENGES[0];
+const solved = new Set();
+
+const chalLab = new Lab({
+  ids: { regs:"chal-regs", catalog:"chal-catalog", builder:"chal-builder", stack:"chal-stack",
+         console:"chal-console", step:"chal-step", run:"chal-run", reset:"chal-reset",
+         addData:"chal-add-data", clear:"chal-clear" },
+  catalog: CHALLENGES[0].catalog,
+  onRun: (m) => {
+    const banner = document.getElementById("chal-banner");
+    if (activeChal.check(m)){
+      banner.className = "status-banner show win";
+      banner.textContent = "✓ Solved! " + chalSolvedBlurb();
+      solved.add(activeChal.id);
+      renderChalTabs();
+    } else {
+      banner.className = "status-banner show fail";
+      banner.textContent = "✗ Not yet — check the register values against the goal, then adjust your chain. (Hint available on the left.)";
+    }
+  },
+});
+
+function chalSolvedBlurb(){
+  const i = CHALLENGES.indexOf(activeChal);
+  if (i < CHALLENGES.length - 1) return "Try the next challenge.";
+  return "That's the set — you've chained a full register-setup-then-syscall. Nicely done.";
+}
+
+function renderChalTabs(){
+  const box = document.getElementById("chal-tabs");
+  box.innerHTML = "";
+  CHALLENGES.forEach(c => {
+    const b = document.createElement("button");
+    b.textContent = c.name;
+    b.className = (c===activeChal?"active ":"") + (solved.has(c.id)?"solved":"");
+    b.onclick = () => loadChallenge(c);
+    box.appendChild(b);
+  });
+}
+
+function loadChallenge(c){
+  activeChal = c;
+  document.getElementById("chal-goal").innerHTML = c.goalHtml;
+  document.getElementById("chal-hint").innerHTML = c.hintHtml;
+  const sol = c.solution.map((e,i) =>
+    e.kind==="gadget" ? `  ${i}: ${GADGETS[e.gadget].asm}` : `  ${i}: ${e.value}  (data)`).join("\n");
+  document.getElementById("chal-solution").innerHTML =
+    `<pre>${sol}</pre><p>${c.solutionNote}</p>`;
+  document.getElementById("chal-banner").className = "status-banner";
+  document.getElementById("chal-solution-wrap").open = false;
+  chalLab.setCatalog(c.catalog);
+  chalLab.chain = [];
+  chalLab.renderChain();
+  chalLab.resetMachine(true);
+  renderChalTabs();
+}
+
+renderChalTabs();
+loadChallenge(CHALLENGES[0]);
+
+// ---- Tab switching ---------------------------------------------------------
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-" + btn.dataset.view).classList.add("active");
+  };
+});
+</script>
+</body>
+</html>
