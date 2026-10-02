@@ -474,7 +474,7 @@ const G_POP_RDX = defGadget(0x401229, "pop rdx ; ret",        { pops:["rdx"] });
 const G_POP_RAX = defGadget(0x40123d, "pop rax ; ret",        { pops:["rax"] });
 const G_POP_RSI_RDX = defGadget(0x401251, "pop rsi ; pop rdx ; ret", { pops:["rsi","rdx"] });
 const G_WRITE   = defGadget(0x401270, "mov [rdi], rsi ; ret", { effects:(m)=>{ m.mem[m.reg.rdi] = m.reg.rsi; } });
-const G_SYSCALL = defGadget(0x401290, "syscall ; ret",        { effects:(m)=>{ m.didSyscall = true; } });
+const G_SYSCALL = defGadget(0x401290, "syscall ; ret",        { effects:(m)=>{ m.didSyscall = true; m.syscallRegs = { ...m.reg }; } });
 const G_XOR_RAX = defGadget(0x4012a4, "xor rax, rax ; ret",   { effects:(m)=>{ m.reg.rax = 0n; } });
 
 // "Target" addresses that aren't gadgets but places a chain may jump to.
@@ -492,6 +492,7 @@ function makeMachine(){
     log: [],
     reached: [],             // addresses jumped to that are "targets"
     didSyscall: false,
+    syscallRegs: null,       // register snapshot taken when syscall ran
     changed: new Set(),      // registers changed since last step (for UI)
   };
 }
@@ -582,7 +583,7 @@ class Lab {
       this.chain[+e.target.dataset.i].gadget = +e.target.value; this.resetMachine(true);
     });
     box.querySelectorAll("input").forEach(inp => inp.oninput = e => {
-      this.chain[+e.target.dataset.i].value = e.target.value;
+      this.chain[+e.target.dataset.i].value = e.target.value; this.resetMachine(true);
     });
     box.querySelectorAll(".kill").forEach(k => k.onclick = e => {
       this.chain.splice(+e.target.dataset.i, 1); this.renderChain(); this.resetMachine(true);
@@ -716,6 +717,11 @@ class Lab {
       g.effects(this.m);
       if (g.addr === G_SYSCALL){
         this.log("reg", `syscall  (rax=${hex(this.m.reg.rax)} rdi=${hex(this.m.reg.rdi)} rsi=${hex(this.m.reg.rsi)} rdx=${hex(this.m.reg.rdx)})`);
+        // Treat the syscall as the end of the chain (a successful execve never returns).
+        this.log("info", "Kernel took over — chain ends at the syscall.");
+        this.m.halted = true;
+        this.renderAll(); this.renderConsole();
+        return false;
       } else if (g.addr === G_WRITE){
         this.log("exec", `mov [rdi], rsi → mem[${hex(this.m.reg.rdi)}] = ${hex(this.m.reg.rsi)}`);
         this.m.changed.add("rsp");
@@ -842,7 +848,7 @@ const CHALLENGES = [
                <code>rax = 0x3b</code> (59), <code>rdi = 0x404000</code>, <code>rsi = 0</code>,
                <code>rdx = 0</code>, then execute <code>syscall</code>.`,
     catalog: [G_POP_RDI, G_POP_RSI, G_POP_RDX, G_POP_RAX, G_POP_RSI_RDX, G_XOR_RAX, G_SYSCALL],
-    check: (m) => m.didSyscall && m.reg.rax === 0x3bn && m.reg.rdi === 0x404000n && m.reg.rsi === 0n && m.reg.rdx === 0n,
+    check: (m) => { const r = m.syscallRegs; return !!r && r.rax === 0x3bn && r.rdi === 0x404000n && r.rsi === 0n && r.rdx === 0n; },
     hintHtml: `The syscall reads the registers that are set at the moment it runs. Load all four
                (<code>rax, rdi, rsi, rdx</code>) with pop gadgets, then run <code>syscall ; ret</code> last.
                Tip: <code>pop rsi ; pop rdx ; ret</code> sets two registers from two consecutive data slots in one go.`,
