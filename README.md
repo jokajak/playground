@@ -15,6 +15,7 @@ directly from GitHub Pages.
 | [QR Code Maker](qrcodemaker/) | Generates QR codes, with optional embedding onto an uploaded picture. | [Use it](https://jokajak.github.io/playground/qrcodemaker/) |
 | [OpenGrid Planner](opengridplanner/) | Plans OpenGrid wall layouts and tile counts, optimized for BambuLab printer bed sizes. | [Use it](https://jokajak.github.io/playground/opengridplanner/) |
 | [Multiplication Fluency](multiplicationfluency/) | Quick-recall times-table drills with spaced repetition, and a menagerie of animals to earn. | [Use it](https://jokajak.github.io/playground/multiplicationfluency/) |
+| [ROP Playground](ropplayground/) | Learn return-oriented programming by building and stepping gadget chains on a toy x86-64 machine. | [Use it](https://jokajak.github.io/playground/ropplayground/) |
 
 ### Cubing
 
