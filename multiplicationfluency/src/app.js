@@ -368,26 +368,19 @@
     };
   }
 
-  /* Drawn artwork, one file per times table (art/dragon-01..12.png), each a
-   * front-facing hatchling looking out at you — used on tiles and sidelines.
-   * The side-on flier for the sky exists only in the artwork's own teal, so it
-   * is hue-rotated to sit near its table's colour. */
+  /* Drawn artwork, two files per times table: a front-facing hatchling looking
+   * out at you (art/dragon-01..12.png) for tiles and sidelines, and a side-on
+   * flier in the same colours (art/dragon-fly-01..12.png) for the sky. */
   const FRONT = { w: 128, h: 128 };
-  const FLY = { src: 'art/dragon-fly.png', w: 128, h: 100 };
-
-  /* Degrees to turn the teal flier by so it roughly matches each table's
-   * dragon. Index is table - 1. */
-  const FLY_TURN = [157, 25, 310, 207, 87, 337, 150, 5, 285, 70, 5, 0];
+  const FLY = { w: 128, h: 100 };
 
   function dragonArt(t, w, pose) {
-    const idx = ((t - 1) % 12 + 12) % 12;
+    const n = String(((t - 1) % 12 + 12) % 12 + 1).padStart(2, '0');
     const fly = pose === 'fly';
-    const src = fly ? FLY.src : 'art/dragon-' + String(idx + 1).padStart(2, '0') + '.png';
     const shape = fly ? FLY : FRONT;
-    const turn = fly ? FLY_TURN[idx] : 0;
-    return '<img class="dragon" src="' + src + '" alt="" aria-hidden="true" ' +
-      'width="' + w + '" height="' + Math.round(w * shape.h / shape.w) + '"' +
-      (turn ? ' style="filter:hue-rotate(' + turn + 'deg)"' : '') + '>';
+    return '<img class="dragon" src="art/dragon-' + (fly ? 'fly-' : '') + n + '.png" ' +
+      'alt="" aria-hidden="true" ' +
+      'width="' + w + '" height="' + Math.round(w * shape.h / shape.w) + '">';
   }
 
   function eggArt(t, w) {
