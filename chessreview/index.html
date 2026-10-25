@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Game Review</title>
+  <link rel="stylesheet" href="src/vendor/chessground.base.css">
+  <link rel="stylesheet" href="src/vendor/chessground.brown.css">
+  <link rel="stylesheet" href="src/vendor/chessground.cburnett.css">
+  <style>
+    /* ── Reset + base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f3f4f6;
+      --panel:   #ffffff;
+      --ink:     #111827;
+      --muted:   #6b7280;
+      --accent:  #1d4ed8;
+      --border:  #e5e7eb;
+      --danger:  #b91c1c;
+      --soft:    #f9fafb;
+
+      /* Move classifications */
+      --brilliant:  #0d9488;
+      --great:      #2563eb;
+      --best:       #15803d;
+      --excellent:  #16a34a;
+      --good:       #65a30d;
+      --book:       #a16207;
+      --forced:     #6b7280;
+      --inaccuracy: #ca8a04;
+      --mistake:    #ea580c;
+      --blunder:    #dc2626;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    button, select, input, textarea { font-family: inherit; font-size: inherit; }
+    [hidden] { display: none !important; }
+
+    header { padding: 16px 24px 0; max-width: 1200px; margin: 0 auto; }
+    header h1 { font-size: 1.4rem; }
+    header p  { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+    header a  { color: var(--accent); }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .panel h2 { font-size: 1rem; margin-bottom: 10px; }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.primary:hover { filter: brightness(1.1); }
+    .btn.small { padding: 5px 10px; font-size: 0.85rem; }
+
+    input[type=text], textarea, select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--panel);
+      color: var(--ink);
+      width: 100%;
+    }
+    textarea { min-height: 110px; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+    label.field { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+
+    .error { color: var(--danger); font-size: 0.9rem; margin-top: 10px; }
+    .muted { color: var(--muted); }
+
+    /* ── Load screen ──────────────────────────────────────────────────────── */
+    #load { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; align-items: start; }
+    .load-form { display: flex; flex-direction: column; gap: 18px; }
+    .row { display: flex; gap: 8px; }
+    .row > input { flex: 1; }
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.8rem; }
+    .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+
+    .game-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .game-item {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--panel);
+      text-align: left;
+      width: 100%;
+    }
+    .game-item:hover { border-color: var(--accent); }
+    .game-item .result {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: grid; place-items: center; font-weight: 700; color: #fff; font-size: 0.85rem;
+    }
+    .result.win  { background: var(--best); }
+    .result.loss { background: var(--blunder); }
+    .result.draw { background: var(--forced); }
+    .game-item .who { font-weight: 600; }
+    .game-item .meta { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+    .game-item .when { color: var(--muted); font-size: 0.8rem; text-align: right; }
+    .tag { display: inline-block; font-size: 0.72rem; padding: 1px 6px; border-radius: 999px; background: #e0e7ff; color: var(--accent); margin-left: 6px; font-weight: 600; }
+
+    /* ── Analysing screen ─────────────────────────────────────────────────── */
+    #analysing { max-width: 520px; margin: 40px auto; text-align: center; }
+    .progress { height: 10px; background: var(--border); border-radius: 999px; overflow: hidden; margin: 18px 0 8px; }
+    .progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+
+    /* ── Review screen ────────────────────────────────────────────────────── */
+    #review { display: grid; grid-template-columns: auto minmax(300px, 1fr); gap: 20px; align-items: start; }
+
+    .board-col { display: flex; flex-direction: column; gap: 8px; }
+    .player { display: flex; justify-content: space-between; font-weight: 600; font-size: 0.92rem; padding: 0 2px; }
+    .player .acc { color: var(--muted); font-weight: 500; }
+    .board-wrap { display: flex; gap: 8px; }
+    .evalbar {
+      width: 18px; border-radius: 4px; overflow: hidden; position: relative;
+      background: #403d39; border: 1px solid var(--border);
+    }
+    .evalbar .white { position: absolute; left: 0; right: 0; bottom: 0; background: #f8f8f6; transition: height 0.3s; }
+    .evalbar.flipped .white { bottom: auto; top: 0; }
+    .evalbar .num {
+      position: absolute; left: 0; right: 0; font-size: 9px; font-weight: 700; text-align: center;
+      writing-mode: vertical-rl; transform: rotate(180deg); padding: 3px 0;
+    }
+    #board { width: min(560px, calc(100vw - 80px)); height: min(560px, calc(100vw - 80px)); }
+    #board.quiz cg-board { box-shadow: 0 0 0 3px var(--accent); }
+
+    .nav { display: flex; gap: 6px; justify-content: center; }
+    .nav .btn { min-width: 44px; }
+
+    .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+    /* Coach */
+    .coach { display: flex; gap: 12px; align-items: flex-start; }
+    .avatar {
+      flex: 0 0 52px; height: 52px; border-radius: 50%;
+      background: #e0e7ff; display: grid; place-items: center; font-size: 30px;
+    }
+    .bubble {
+      flex: 1; position: relative; background: var(--soft);
+      border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-height: 52px;
+      line-height: 1.45;
+    }
+    .bubble::before {
+      content: ""; position: absolute; left: -7px; top: 18px; width: 12px; height: 12px;
+      background: var(--soft); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      transform: rotate(45deg);
+    }
+    .bubble .headline { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 6px; flex-wrap: wrap; }
+    .bubble .line { font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 8px; color: var(--muted); }
+    .bubble .line b { color: var(--ink); }
+    .coach-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px;
+      color: #fff; font-size: 0.75rem; font-weight: 800; line-height: 1;
+    }
+    .cls-text { font-weight: 700; }
+
+    /* Summary */
+    .summary { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; align-items: center; font-size: 0.9rem; }
+    .summary .head { font-weight: 700; text-align: center; }
+    .summary .acc { font-size: 1.5rem; font-weight: 800; text-align: center; }
+    .summary .num { text-align: center; font-variant-numeric: tabular-nums; }
+    .summary .label { display: flex; align-items: center; gap: 8px; }
+
+    /* Eval graph */
+    #graph { width: 100%; height: 90px; display: block; cursor: pointer; border-radius: 6px; }
+
+    /* Move list */
+    .moves {
+      display: grid; grid-template-columns: 38px 1fr 1fr; max-height: 300px; overflow-y: auto;
+      font-size: 0.9rem; border: 1px solid var(--border); border-radius: 8px;
+    }
+    .moves .no { color: var(--muted); background: var(--soft); padding: 4px 6px; text-align: right; }
+    .moves button {
+      border: 0; background: none; text-align: left; padding: 4px 8px; cursor: pointer; color: var(--ink);
+      display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    }
+    .moves button:hover { background: #eef2ff; }
+    .moves button.current { background: #dbeafe; font-weight: 700; }
+    .moves .sym { font-size: 0.75rem; font-weight: 800; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+
+    @media (max-width: 900px) {
+      #load, #review { grid-template-columns: 1fr; }
+      #board { width: calc(100vw - 80px); height: calc(100vw - 80px); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>♞ Chess Game Review</h1>
+    <p>Walk through your Lichess games with a coach: what went wrong, what went right, and a chance to find the better move. Analysis runs in your browser with Stockfish.</p>
+  </header>
+
+  <main>
+    <!-- ── Load ──────────────────────────────────────────────────────────── -->
+    <section id="load">
+      <div class="panel load-form">
+        <form id="user-form">
+          <label class="field" for="username">Lichess username</label>
+          <div class="row">
+            <input type="text" id="username" autocomplete="username" spellcheck="false" placeholder="e.g. DrNykterstein">
+            <button class="btn primary" type="submit">Find games</button>
+          </div>
+        </form>
+
+        <div class="divider">or</div>
+
+        <form id="link-form">
+          <label class="field" for="game-link">Game link or ID</label>
+          <div class="row">
+            <input type="text" id="game-link" spellcheck="false" placeholder="https://lichess.org/abcd1234">
+            <button class="btn" type="submit">Review</button>
+          </div>
+        </form>
+
+        <div class="divider">or</div>
+
+        <form id="pgn-form">
+          <label class="field" for="pgn">Paste a PGN</label>
+          <textarea id="pgn" spellcheck="false" placeholder="1. e4 e5 2. Nf3 Nc6 …"></textarea>
+          <div class="row" style="margin-top:8px; align-items:center">
+            <label class="muted" for="pgn-side" style="font-size:0.85rem">I played</label>
+            <select id="pgn-side" style="width:auto">
+              <option value="w">White</option>
+              <option value="b">Black</option>
+            </select>
+            <span style="flex:1"></span>
+            <button class="btn" type="submit">Review</button>
+          </div>
+        </form>
+
+        <div>
+          <label class="field" for="depth">Analysis depth</label>
+          <select id="depth">
+            <option value="12">Quick (depth 12)</option>
+            <option value="14" selected>Standard (depth 14)</option>
+            <option value="18">Deep (depth 18, slow)</option>
+          </select>
+        </div>
+
+        <p id="load-error" class="error" hidden></p>
+      </div>
+
+      <div class="panel" id="games-panel" hidden>
+        <h2 id="games-title">Recent games</h2>
+        <ul class="game-list" id="games"></ul>
+      </div>
+    </section>
+
+    <!-- ── Analysing ─────────────────────────────────────────────────────── -->
+    <section id="analysing" class="panel" hidden>
+      <div class="coach" style="text-align:left">
+        <div class="avatar">♞</div>
+        <div class="bubble" id="analysing-text">Let me look over your game…</div>
+      </div>
+      <div class="progress"><div id="progress-bar"></div></div>
+      <p class="muted" id="progress-text">Starting the engine…</p>
+      <button class="btn" id="cancel" style="margin-top:14px">Cancel</button>
+    </section>
+
+    <!-- ── Review ────────────────────────────────────────────────────────── -->
+    <section id="review" hidden>
+      <div class="board-col">
+        <div class="player" id="top-player"></div>
+        <div class="board-wrap">
+          <div class="evalbar" id="evalbar"><div class="white"></div><div class="num"></div></div>
+          <div id="board"></div>
+        </div>
+        <div class="player" id="bottom-player"></div>
+        <div class="nav">
+          <button class="btn" id="nav-first" title="Start (Home)">⏮</button>
+          <button class="btn" id="nav-prev"  title="Previous move (←)">◀</button>
+          <button class="btn" id="nav-next"  title="Next move (→)">▶</button>
+          <button class="btn" id="nav-last"  title="End (End)">⏭</button>
+          <button class="btn" id="nav-flip"  title="Flip board (f)">⇅</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="panel">
+          <div class="coach">
+            <div class="avatar">♞</div>
+            <div class="bubble" id="bubble"></div>
+          </div>
+          <div class="coach-actions" id="actions"></div>
+        </div>
+
+        <div class="panel">
+          <div class="toolbar" style="margin-bottom:10px">
+            <h2 style="margin:0" id="game-title">Game</h2>
+            <button class="btn small" id="new-game">New game</button>
+          </div>
+          <svg id="graph" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="panel" id="summary-panel">
+          <h2>Summary</h2>
+          <div class="summary" id="summary"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Moves</h2>
+          <div class="moves" id="moves"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

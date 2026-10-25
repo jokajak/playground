@@ -16,6 +16,7 @@ directly from GitHub Pages.
 | [OpenGrid Planner](opengridplanner/) | Plans OpenGrid wall layouts and tile counts, optimized for BambuLab printer bed sizes. | [Use it](https://jokajak.github.io/playground/opengridplanner/) |
 | [Multiplication Fluency](multiplicationfluency/) | Quick-recall times-table drills with spaced repetition, and a menagerie of animals to earn. | [Use it](https://jokajak.github.io/playground/multiplicationfluency/) |
 | [ROP Playground](ropplayground/) | Learn return-oriented programming by building and stepping gadget chains on a toy x86-64 machine. | [Use it](https://jokajak.github.io/playground/ropplayground/) |
+| [Chess Game Review](chessreview/) | Coach-style review of your Lichess games: rated moves, plain-language explanations, and find-the-better-move practice. | [Use it](https://jokajak.github.io/playground/chessreview/) |
 
 ### Cubing
 
