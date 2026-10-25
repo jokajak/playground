@@ -406,7 +406,9 @@ function renderBoard() {
   }
 
   const chess = new Chess(fen);
-  const quizzing = mode === 'quiz' && !state.quiz.thinking && !state.quiz.done;
+  // Moves are only allowed from the exercise's own position: after an attempt
+  // the board shows the opponent to move, and stays locked until Try again.
+  const quizzing = mode === 'quiz' && !state.quiz.thinking && !state.quiz.done && !state.quiz.result;
   ground.set({
     fen,
     orientation: state.orientation === 'w' ? 'white' : 'black',
@@ -448,7 +450,7 @@ function renderPlayers() {
     const name = c === 'w' ? meta.white : meta.black;
     const rating = c === 'w' ? meta.whiteRating : meta.blackRating;
     const you = c === state.me ? ' (you)' : '';
-    return `<span>${c === 'w' ? '○' : '●'} ${esc(name)}${rating ? ' ' + rating : ''}${you}</span>` +
+    return `<span>${c === 'w' ? '○' : '●'} ${esc(name)}${rating ? ' ' + esc(rating) : ''}${you}</span>` +
       `<span class="acc">${review.summary[c].accuracy.toFixed(0)}% accuracy</span>`;
   };
   const bottom = state.orientation;
@@ -659,8 +661,12 @@ function revealQuiz() {
 
 async function onQuizMove(orig, dest) {
   const q = state.quiz;
-  if (!q || q.done) return;
-  const chess = new Chess(q.fen);
+  if (!q || q.done || q.thinking || q.result) {
+    if (q) render(); // put back any piece the board moved
+    return;
+  }
+  // Always grade against the exercise position, whatever the board shows.
+  const chess = new Chess(q.m.fenBefore);
   let mv;
   try {
     // Promote to a queen; underpromotion is rarely the lesson here.
