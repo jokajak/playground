@@ -9,6 +9,14 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Tracks chess.js, Chessground and Stockfish, vendored into
+  # chessreview/src/vendor/. Same drill: `npm install && npm run sync-vendor`
+  # in chessreview/ after merging a bump.
+  - package-ecosystem: "npm"
+    directory: "/chessreview"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
