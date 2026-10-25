@@ -234,11 +234,15 @@ ones**, built from what just happened.
 The dragons in `art/` are commissioned artwork owned by this project, generated
 to order and licensed with the rest of the repository. There is one front-facing
 hatchling per times table (`dragon-01.png` … `dragon-12.png`), used on the
-menagerie tiles and the sidelines where they look out at you, plus a single
-side-on flier (`dragon-fly.png`) for the sky, hue-rotated per table to sit near
-its dragon's colour. Each sprite is trimmed to the artwork, reduced to 128px
-wide — three times its largest on-screen size, so it stays sharp on retina — and
-palette-compressed; the whole set is around 100KB.
+menagerie tiles and the sidelines where they look out at you, plus a side-on
+flier in the same colours (`dragon-fly-01.png` … `dragon-fly-12.png`) for the
+sky. All twelve hatchlings share one drawing, so the ones whose source was
+clipped (6–10) are rebuilt from dragon 2 recoloured to their own palette, and
+the fliers are recoloured from a single drawing the same way — only the hide
+changes, so the orange wings and golden belly stay put. Front sprites sit on a
+uniform 128px square canvas and fliers on 128×100 — three times their largest
+on-screen size, so they stay sharp on retina — palette-compressed; the whole
+set is around 100KB.
 
 The eggs are still inline SVG, and the companions are plain Unicode emoji, so
 they render in whatever style the reader's platform ships.
