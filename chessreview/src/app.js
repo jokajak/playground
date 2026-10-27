@@ -6,10 +6,20 @@ import {
   parseGame, analyseGame, buildReview, keyMoments, gradeAttempt, explainBest, terminalEval, toWhite,
   playLine, numberLine, formatEval, winPct, positionsOf, sideName, CLASSES,
 } from './review.js';
+import { analyseOpening, openingNote, familyOf } from './openings.js';
 
 const $ = (id) => document.getElementById(id);
 const ENGINE_URL = new URL('./vendor/stockfish.js', import.meta.url);
 const QUIZ_DEPTH = 12;
+const ANIMATION_MS = 180;
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
+
+// Piece sets: cburnett ships with Chessground, the rest come from
+// tools/fetch-assets.js.
+const PIECE_SETS = {
+  cburnett: 'Cburnett', merida: 'Merida', chessnut: 'Chessnut', mpchess: 'MPChess',
+  fantasy: 'Fantasy', celtic: 'Celtic', spatial: 'Spatial', papercut: 'Papercut', rhosgfx: 'RhosGFX',
+};
 
 // ── Storage (best effort: private windows may refuse it) ───────────────────
 
@@ -48,9 +58,12 @@ const state = {
   orientation: 'w',
   cursor: 0,        // 0 = start; k = after ply k
   keys: [],         // key-moment ply indexes (0-based into review.moves)
-  mode: 'browse',   // 'browse' | 'line' | 'quiz'
+  opening: null,    // analyseOpening() result
+  stops: [],        // plies the review stops on: the opening, then the key moments
+  mode: 'browse',   // 'browse' | 'line' | 'quiz' | 'playback'
   line: null,       // { fens, sans, lastMoves, step, text } while showing a line
   quiz: null,       // { m, tries, result } while finding a better move
+  playback: null,   // { target } while playing the moves up to a stop
 };
 
 let engine = null;
@@ -62,6 +75,7 @@ function getEngine() {
 }
 
 function show(screen) {
+  if (screen !== 'review') state.playback = null;
   for (const id of ['load', 'analysing', 'review']) $(id).hidden = id !== screen;
 }
 
@@ -231,8 +245,13 @@ async function start(game, meta, me) {
     cacheAnalysis(cacheKey, evals);
   }
 
-  state.review = buildReview(game, evals, { bookPly: meta.bookPly, perspective: me });
+  state.opening = analyseOpening(game);
+  const bookPly = Math.max(meta.bookPly || 0, state.opening.bookPly);
+  state.review = buildReview(game, evals, { bookPly, perspective: me });
   state.keys = keyMoments(state.review, me);
+  // Every move of the opening is a stop, so the review never skips it.
+  state.stops = [...new Set([...state.opening.steps.map((st) => st.ply), ...state.keys.map((i) => i + 1)])]
+    .sort((a, b) => a - b);
   state.mode = 'browse';
   state.cursor = 0;
   show('review');
@@ -288,7 +307,7 @@ function setupReview() {
   if (!ground) {
     ground = Chessground($('board'), {
       coordinates: true,
-      animation: { enabled: true, duration: 180 },
+      animation: { enabled: true, duration: ANIMATION_MS },
       movable: { free: false, color: undefined, showDests: true },
       draggable: { showGhost: true },
       drawable: { enabled: true, visible: true },
@@ -296,8 +315,36 @@ function setupReview() {
     });
   }
   renderSummary();
+  renderOpening();
   renderMoveList();
   render();
+}
+
+// The opening at a glance: its name, and each move that named or renamed it.
+function renderOpening() {
+  const { opening, review, meta } = state;
+  const name = opening.name || meta.opening;
+  $('opening-panel').hidden = !name;
+  if (!name) return;
+  const el = $('opening');
+  const book = opening.bookPly
+    ? `In book until ${esc(moveLabel(review.moves[opening.bookPly - 1]))}.`
+    : '';
+  el.innerHTML = `<div class="opening-name">${esc(name)}${opening.eco ? ` <span class="tag">${esc(opening.eco)}</span>` : ''}</div>` +
+    `<div class="muted" style="font-size:0.85rem;margin:2px 0 8px">${book}</div>`;
+  const list = document.createElement('div');
+  list.className = 'opening-trail';
+  for (const st of opening.steps) {
+    if (!st.renamed && !st.leftBook) continue;
+    const b = document.createElement('button');
+    b.dataset.ply = st.ply;
+    b.innerHTML = `<span class="mv"></span><span></span>`;
+    b.firstChild.textContent = moveLabel(review.moves[st.ply - 1]);
+    b.lastChild.textContent = st.leftBook ? 'Leaves the book' : st.opening.name;
+    b.addEventListener('click', () => goTo(st.ply));
+    list.appendChild(b);
+  }
+  el.appendChild(list);
 }
 
 function renderSummary() {
@@ -346,6 +393,10 @@ function renderMoveList() {
 }
 
 function goTo(k) {
+  if (state.playback) {
+    state.playback = null;
+    ground.set({ animation: { duration: ANIMATION_MS } });
+  }
   state.mode = 'browse';
   state.line = null;
   state.quiz = null;
@@ -353,12 +404,43 @@ function goTo(k) {
   render();
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Jump forward to ply `k`, playing the moves in between so the reader sees
+// how the game got there. Any other navigation cancels the playback.
+async function travel(k) {
+  const from = state.mode === 'quiz' ? state.quiz.m.ply - 1 : state.cursor;
+  if (k - from < 2 || REDUCED_MOTION.matches) return goTo(k);
+  const run = { target: k };
+  state.mode = 'playback';
+  state.line = null;
+  state.quiz = null;
+  state.playback = run;
+  // About two and a half seconds in all, but neither a blur nor a crawl.
+  const delay = Math.max(160, Math.min(450, 2400 / (k - from)));
+  ground.set({ animation: { duration: Math.round(delay * 0.7) } });
+  render();
+  for (let p = from + 1; p < k; p++) {
+    state.cursor = p;
+    renderPosition();
+    await sleep(delay);
+    if (state.playback !== run) return;
+  }
+  goTo(k);
+}
+
 // ── Rendering ──────────────────────────────────────────────────────────────
 
 function render() {
-  renderBoard();
+  renderPosition();
   renderCoach();
   renderPlayers();
+  $('board').classList.toggle('quiz', state.mode === 'quiz');
+}
+
+// Everything that follows the cursor: redrawn on each step of a playback.
+function renderPosition() {
+  renderBoard();
   renderEvalBar();
   renderGraph();
   const list = $('moves');
@@ -370,7 +452,9 @@ function render() {
       list.scrollTop = b.offsetTop - list.clientHeight / 2;
     }
   }
-  $('board').classList.toggle('quiz', state.mode === 'quiz');
+  for (const b of $('opening').querySelectorAll('button[data-ply]')) {
+    b.classList.toggle('current', +b.dataset.ply === state.cursor);
+  }
 }
 
 function renderBoard() {
@@ -390,8 +474,9 @@ function renderBoard() {
   } else {
     fen = state.fens[cursor];
     const m = review.moves[cursor - 1];
-    if (m) {
-      lastMove = [m.from, m.to];
+    // Playback shows the moves only, without the review's markings.
+    if (m) lastMove = [m.from, m.to];
+    if (m && mode === 'browse') {
       shapes.push({ orig: m.to, customSvg: { html: glyphSvg(m.cls), center: 'dest' } });
       if (!CLASSES[m.cls].good && m.best) {
         const b = m.best.pv[0];
@@ -522,6 +607,13 @@ function renderCoach() {
   };
 
   if (state.mode === 'quiz') return renderQuiz(bubble, add);
+  if (state.mode === 'playback') {
+    const target = state.playback.target;
+    bubble.innerHTML = `<div class="headline">On to ${esc(moveLabel(state.review.moves[target - 1]))}…</div>` +
+      '<div class="muted">Watch how the game got there.</div>';
+    add('Skip ▶', () => goTo(target), true);
+    return;
+  }
   if (state.mode === 'line') {
     const l = state.line;
     bubble.innerHTML = `<div class="headline">${esc(l.title)}</div>` +
@@ -531,25 +623,31 @@ function renderCoach() {
     return;
   }
 
-  const { review, cursor, keys } = state;
-  const nextKey = keys.find((i) => i + 1 > cursor);
-  const prevKey = [...keys].reverse().find((i) => i + 1 < cursor);
+  const { review, cursor, stops, opening } = state;
+  const nextStop = stops.find((p) => p > cursor);
+  const prevStop = [...stops].reverse().find((p) => p < cursor);
 
   if (cursor === 0) {
     bubble.innerHTML = introText();
-    if (nextKey != null) add(keys.length ? 'Start the review ▶' : 'Next ▶', () => goTo(nextKey + 1), true);
-    else add('Step through the game ▶', () => goTo(1), true);
+    add('Start the review ▶', () => goTo(1), true);
     return;
   }
 
   const m = review.moves[cursor - 1];
   const mine = m.color === state.me;
   const who = mine ? '' : `${sideName(m.color)}'s `;
+  const step = opening.steps[cursor - 1];
+  // In the opening a book move is explained by the opening itself.
+  const note = step && openingNote(step, cursor > 1 && opening.steps[cursor - 2].opening);
+  const explanation = step && m.cls === 'book' && note ? '' : m.explanation;
   bubble.innerHTML =
+    (step ? `<div class="phase">Opening · step ${cursor} of ${opening.endPly}</div>` : '') +
     `<div class="headline">${badge(m.cls)} <span>${esc(who + moveLabel(m))} is ` +
     `<span class="cls-text" style="color:${COLORS[m.cls]}">${VERDICT[m.cls]}</span></span>` +
     `<span class="muted" style="font-weight:500;font-size:0.85rem">${formatEval(m.after.eval)}</span></div>` +
-    `<div>${esc(m.explanation)}</div>` +
+    (note ? `<div class="opening-note">${esc(note)}</div>` : '') +
+    (explanation ? `<div>${esc(explanation)}</div>` : '') +
+    (step ? alternativesHtml(m, step, cursor > 1 && opening.steps[cursor - 2].opening) : '') +
     (m.bestLineText ? `<div class="line">Best line: <b>${esc(m.bestLineText)}</b></div>` : '');
 
   const bad = !CLASSES[m.cls].good;
@@ -558,9 +656,25 @@ function renderCoach() {
   if (['mistake', 'blunder'].includes(m.cls) && m.after.lines[0]) {
     add('Show the threat', () => showLine(m.fenAfter, m.after.lines[0].pv, `What ${m.san} allows`));
   }
-  if (prevKey != null) add('◀ Previous key moment', () => goTo(prevKey + 1));
-  if (nextKey != null) add('Next key moment ▶', () => goTo(nextKey + 1), !(bad && mine));
-  else if (cursor < review.moves.length) add('Next move ▶', () => goTo(cursor + 1));
+  if (prevStop != null) add(prevStop <= opening.endPly ? '◀ Previous move' : '◀ Previous key moment', () => goTo(prevStop));
+  if (nextStop != null) {
+    add(nextStop <= opening.endPly ? 'Next move ▶' : 'Next key moment ▶', () => travel(nextStop), !(bad && mine));
+  } else if (cursor < review.moves.length) {
+    add('Next move ▶', () => goTo(cursor + 1));
+  }
+  const afterOpening = stops.find((p) => p > opening.endPly);
+  if (step && cursor < opening.endPly && afterOpening != null) add('Skip the opening ⏭', () => travel(afterOpening));
+}
+
+// The other book moves at this point, main lines first. Names are shortened
+// to the variation when they stay in the opening already on the board.
+function alternativesHtml(m, step, prevOpening) {
+  const alts = step.alternatives.slice(0, 3);
+  if (!alts.length) return '';
+  const family = prevOpening && familyOf(prevOpening.name);
+  const label = (a) => (family && familyOf(a.name) === family && a.name.includes(': ') ? a.name.split(': ')[1] : a.name);
+  const items = alts.map((a) => `<b>${esc(numberLine(m.fenBefore, [a.san]))}</b> ${esc(label(a))}`);
+  return `<div class="line">${step.leftBook ? 'The book moves were' : 'Other book moves'}: ${items.join(' · ')}</div>`;
 }
 
 function introText() {
@@ -574,10 +688,13 @@ function introText() {
   let text = `${opener} You played with <b>${acc.toFixed(0)}% accuracy</b>`;
   text += errors ? `, with ${errors} ${errors === 1 ? 'move' : 'moves'} I'd like to show you` : ' and no serious mistakes';
   text += highlights ? `, and ${highlights} standout ${highlights === 1 ? 'move' : 'moves'} worth celebrating.` : '.';
-  if (meta.opening) text += ` <span class="muted">Opening: ${esc(meta.opening)}.</span>`;
-  text += keys.length
-    ? `<div style="margin-top:8px">Let's go through the ${keys.length} key ${keys.length === 1 ? 'moment' : 'moments'}. When you went wrong, I'll ask you to find a better move.</div>`
-    : '<div style="margin-top:8px">No big turning points this time — step through the moves to see each one rated.</div>';
+  const opening = state.opening.name || meta.opening;
+  if (opening) text += ` <span class="muted">Opening: ${esc(opening)}.</span>`;
+  const later = keys.filter((i) => i + 1 > state.opening.endPly).length;
+  text += '<div style="margin-top:8px">' + (opening ? "We'll start with the opening, move by move" : "We'll start with the first moves");
+  text += later
+    ? `, then go through the ${later} key ${later === 1 ? 'moment' : 'moments'} after it. When you went wrong, I'll ask you to find a better move.</div>`
+    : '. After that there are no big turning points — step through the moves to see each one rated.</div>';
   return `<div class="headline">Game review</div>${text}`;
 }
 
@@ -632,8 +749,8 @@ function renderQuiz(bubble, add) {
   if (!q.done && q.tries >= 1) add('Show me', () => revealQuiz(), q.tries >= 2);
   if (q.done) {
     if (m.best) add('Show best line', () => showLine(m.fenBefore, m.best.pv, "The engine's line"));
-    const next = state.keys.find((i) => i + 1 > m.ply);
-    if (next != null) add('Next key moment ▶', () => goTo(next + 1), true);
+    const next = state.stops.find((p) => p > m.ply);
+    if (next != null) add(next <= state.opening.endPly ? 'Next move ▶' : 'Next key moment ▶', () => travel(next), true);
   }
   add('Back to the game', () => goTo(m.ply));
 }
@@ -722,6 +839,36 @@ $('nav-next').addEventListener('click', () => step(1));
 $('nav-last').addEventListener('click', () => goTo(state.fens.length - 1));
 $('nav-flip').addEventListener('click', flip);
 $('new-game').addEventListener('click', () => { show('load'); });
+
+// ── Piece sets ─────────────────────────────────────────────────────────────
+
+let pieceLink = null;
+
+// Swap the piece stylesheet, dropping the old one only once the new one has
+// loaded so the pieces never blink out.
+function usePieces(set) {
+  if (!PIECE_SETS[set]) set = 'cburnett';
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = new URL(set === 'cburnett' ? './vendor/chessground.cburnett.css' : `./vendor/pieces/${set}.css`, import.meta.url);
+  link.dataset.pieces = set;
+  pieceLink = link;
+  link.addEventListener('load', () => {
+    if (pieceLink !== link) { link.remove(); return; }
+    for (const l of document.querySelectorAll('link[data-pieces]')) if (l !== link) l.remove();
+  });
+  document.head.appendChild(link);
+  $('piece-set').value = set;
+}
+
+for (const [value, label] of Object.entries(PIECE_SETS)) $('piece-set').add(new Option(label, value));
+const savedPieces = load('pieces');
+if (savedPieces && savedPieces !== 'cburnett') usePieces(savedPieces);
+$('piece-set').addEventListener('change', () => {
+  usePieces($('piece-set').value);
+  save('pieces', $('piece-set').value);
+  $('piece-set').blur(); // give the arrow keys back to the board
+});
 
 function flip() {
   state.orientation = state.orientation === 'w' ? 'b' : 'w';
