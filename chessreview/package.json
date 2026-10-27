@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "sync-vendor": "node tools/sync-vendor.js",
+    "fetch-assets": "node tools/fetch-assets.js",
     "test": "node --test"
   },
   "dependencies": {

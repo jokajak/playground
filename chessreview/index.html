@@ -6,7 +6,7 @@
   <title>Chess Game Review</title>
   <link rel="stylesheet" href="src/vendor/chessground.base.css">
   <link rel="stylesheet" href="src/vendor/chessground.brown.css">
-  <link rel="stylesheet" href="src/vendor/chessground.cburnett.css">
+  <link rel="stylesheet" href="src/vendor/chessground.cburnett.css" data-pieces="cburnett">
   <style>
     /* ── Reset + base ─────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -150,6 +150,7 @@
 
     .nav { display: flex; gap: 6px; justify-content: center; }
     .nav .btn { min-width: 44px; }
+    .nav select { width: auto; padding: 6px 8px; }
 
     .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
@@ -173,6 +174,20 @@
     .bubble .line { font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 8px; color: var(--muted); }
     .bubble .line b { color: var(--ink); }
     .coach-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .bubble .phase { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--book); margin-bottom: 4px; }
+    .bubble .opening-note { font-weight: 600; margin-bottom: 4px; }
+
+    /* Opening */
+    .opening-name { font-weight: 700; }
+    .opening-trail { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .opening-trail button {
+      border: 0; background: none; text-align: left; padding: 5px 8px; cursor: pointer; color: var(--ink);
+      display: grid; grid-template-columns: 84px 1fr; gap: 8px; font-size: 0.85rem;
+    }
+    .opening-trail button + button { border-top: 1px solid var(--border); }
+    .opening-trail button:hover { background: #eef2ff; }
+    .opening-trail button.current { background: #dbeafe; font-weight: 700; }
+    .opening-trail .mv { font-family: ui-monospace, monospace; color: var(--muted); }
 
     .badge {
       display: inline-flex; align-items: center; justify-content: center;
@@ -301,6 +316,7 @@
           <button class="btn" id="nav-next"  title="Next move (→)">▶</button>
           <button class="btn" id="nav-last"  title="End (End)">⏭</button>
           <button class="btn" id="nav-flip"  title="Flip board (f)">⇅</button>
+          <select id="piece-set" title="Piece set" aria-label="Piece set"></select>
         </div>
       </div>
 
@@ -319,6 +335,11 @@
             <button class="btn small" id="new-game">New game</button>
           </div>
           <svg id="graph" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="panel" id="opening-panel">
+          <h2>Opening</h2>
+          <div id="opening"></div>
         </div>
 
         <div class="panel" id="summary-panel">
